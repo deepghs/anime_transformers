@@ -17,7 +17,8 @@ from .ensure_imgutils import ensure_imgutils_dependency
 ensure_imgutils_dependency()
 
 import torch
-from imgutils.preprocess import create_torchvision_transforms, parse_torchvision_transforms
+
+exec('from imgutils.preprocess import create_torchvision_transforms, parse_torchvision_transforms')
 from transformers import BaseImageProcessor, TensorType
 from transformers.image_processing_base import BatchFeature
 from transformers.image_utils import make_flat_list_of_images, ImageInput
@@ -61,6 +62,7 @@ class ImgutilsBasedImageProcessor(BaseImageProcessor):
         :param kwargs: Additional keyword arguments passed to the parent BaseImageProcessor
         """
         super().__init__(**kwargs)
+        # noinspection PyUnresolvedReferences
         self.stages = create_torchvision_transforms(stages)
 
     def preprocess(self, images: ImageInput, return_tensors: Optional[Union[str, TensorType]] = None,
@@ -73,7 +75,7 @@ class ImgutilsBasedImageProcessor(BaseImageProcessor):
         object containing the processed pixel values.
 
         :param images: Input images to preprocess. Can be a single image or batch of images
-        :type images: Union[PIL.Image.Image, List[PIL.Image.Image], torch.Tensor, List[torch.Tensor]]
+        :type images: ImageInput
         :param return_tensors: Format of the returned tensors (e.g., 'pt' for PyTorch)
         :type return_tensors: Optional[Union[str, TensorType]]
         :param kwargs: Additional keyword arguments (currently unused)
@@ -117,6 +119,7 @@ class ImgutilsBasedImageProcessor(BaseImageProcessor):
             >>> with open("processor_config.json", "w") as f:
             ...     json.dump(config_dict, f)
         """
+        # noinspection PyUnresolvedReferences
         return {
             **super().to_dict(),
             'stages': parse_torchvision_transforms(self.stages),
