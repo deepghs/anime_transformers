@@ -100,7 +100,7 @@ class ImgutilsBasedImageProcessor(BaseImageProcessor):
         data = {"pixel_values": images}
         return BatchFeature(data=data, tensor_type=return_tensors)
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         """
         Convert the processor configuration to a dictionary representation.
 

@@ -14,7 +14,7 @@ import sys
 import warnings
 
 
-def ensure_imgutils_dependency():
+def ensure_imgutils_dependency() -> None:
     """
     Detect and automatically install the dghs-imgutils library dependency.
 
