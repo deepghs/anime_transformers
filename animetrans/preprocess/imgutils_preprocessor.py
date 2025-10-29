@@ -11,7 +11,7 @@ and returns properly formatted BatchFeature objects compatible with transformers
 
 from typing import List, Optional, Union
 
-from .ensure import ensure_imgutils_dependency
+from .ensure_imgutils import ensure_imgutils_dependency
 
 # Ensure imgutils dependency is available before importing other dependencies
 ensure_imgutils_dependency()
@@ -121,30 +121,6 @@ class ImgutilsBasedImageProcessor(BaseImageProcessor):
             **super().to_dict(),
             'stages': parse_torchvision_transforms(self.stages),
         }
-
-    @classmethod
-    def register_for_auto_class(cls, auto_class="AutoImageProcessor"):
-        """
-        Register this processor class for automatic loading via AutoImageProcessor.
-
-        This class method enables the processor to be automatically discovered and
-        loaded by the transformers AutoImageProcessor when loading from a model
-        configuration or hub.
-
-        :param auto_class: The auto class name to register for (default: "AutoImageProcessor")
-        :type auto_class: str
-
-        :return: Result of parent class registration
-
-        Example::
-
-            >>> # Register custom processor
-            >>> ImgutilsBasedImageProcessor.register_for_auto_class()
-            >>> # Now it can be loaded automatically
-            >>> from transformers import AutoImageProcessor
-            >>> processor = AutoImageProcessor.from_pretrained("model_name")
-        """
-        return super().register_for_auto_class(auto_class)
 
 
 # Register the processor for automatic loading

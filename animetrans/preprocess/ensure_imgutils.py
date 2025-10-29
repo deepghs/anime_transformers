@@ -9,7 +9,7 @@ dependency installation automatically.
 The module performs validation of specific required modules within dghs-imgutils to
 ensure complete functionality is available.
 """
-
+import logging
 import subprocess
 import sys
 
@@ -41,22 +41,20 @@ def ensure_imgutils_dependency():
         import imgutils
         # Validate that required modules exist
         from imgutils.preprocess import create_torchvision_transforms, parse_torchvision_transforms
-        print("dghs-imgutils library is already installed and available.")
+        logging.info("dghs-imgutils library is already installed and available.")
     except ImportError as e:
-        print(f"dghs-imgutils library not found: {e}")
-        print("Attempting to install dghs-imgutils...")
+        logging.warning(f"dghs-imgutils library not found: {e}\n"
+                        f"Attempting to install dghs-imgutils...")
 
         try:
             # Attempt to install dghs-imgutils
-            subprocess.check_call([
-                sys.executable, "-m", "pip", "install", "dghs-imgutils"
-            ])
-            print("Successfully installed dghs-imgutils!")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "dghs-imgutils>=17.0"])
+            logging.info("Successfully installed dghs-imgutils!")
 
             # Re-import to verify installation
             import imgutils
             from imgutils.preprocess import create_torchvision_transforms, parse_torchvision_transforms
-            print("dghs-imgutils library is now available.")
+            logging.error("dghs-imgutils library is now available.")
 
         except subprocess.CalledProcessError as install_error:
             raise RuntimeError(
