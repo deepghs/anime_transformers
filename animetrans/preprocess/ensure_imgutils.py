@@ -56,10 +56,10 @@ def ensure_imgutils_dependency() -> None:
         except subprocess.CalledProcessError as install_error:
             raise RuntimeError(
                 f"Failed to install dghs-imgutils: {install_error}\n"
-                "Please install it manually using: pip install dghs-imgutils"
+                "Please install it manually using: pip install dghs-imgutils>=0.17"
             ) from install_error
         except (ImportError, ModuleNotFoundError) as import_error:
             raise RuntimeError(
                 f"dghs-imgutils was installed but cannot be imported: {import_error}\n"
-                "Please check your installation or install manually: pip install dghs-imgutils"
+                "Please check your installation or install manually: pip install dghs-imgutils>=0.17"
             ) from import_error
