@@ -42,13 +42,13 @@ def ensure_imgutils_dependency():
         # Validate that required modules exist
         from imgutils.preprocess import create_torchvision_transforms, parse_torchvision_transforms
         logging.info("dghs-imgutils library is already installed and available.")
-    except ImportError as e:
+    except (ImportError, ModuleNotFoundError) as e:
         logging.warning(f"dghs-imgutils library not found: {e}\n"
                         f"Attempting to install dghs-imgutils...")
 
         try:
             # Attempt to install dghs-imgutils
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "dghs-imgutils>=17.0"])
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "dghs-imgutils>=0.17.0"])
             logging.info("Successfully installed dghs-imgutils!")
 
             # Re-import to verify installation
@@ -61,7 +61,7 @@ def ensure_imgutils_dependency():
                 f"Failed to install dghs-imgutils: {install_error}\n"
                 "Please install it manually using: pip install dghs-imgutils"
             ) from install_error
-        except ImportError as import_error:
+        except (ImportError, ModuleNotFoundError) as import_error:
             raise RuntimeError(
                 f"dghs-imgutils was installed but cannot be imported: {import_error}\n"
                 "Please check your installation or install manually: pip install dghs-imgutils"
