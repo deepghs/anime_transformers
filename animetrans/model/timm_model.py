@@ -69,6 +69,20 @@ class TimmModelConfig(PretrainedConfig):
             raise AttributeError(f'No num classes for {self.task_type} task.')
 
     @property
+    def classes(self) -> List[str]:
+        """
+        Get the list of class names for classification tasks.
+
+        :return: List of class names.
+        :rtype: List[str]
+        :raises AttributeError: If task type is not classification.
+        """
+        if self.task_type == 'classification':
+            return self.task_config['classes']
+        else:
+            raise AttributeError(f'No classes for {self.task_type} task.')
+
+    @property
     def num_tags(self) -> int:
         """
         Get the number of tags for tagging tasks.
@@ -83,6 +97,20 @@ class TimmModelConfig(PretrainedConfig):
             raise AttributeError(f'No num tags for {self.task_type} task.')
 
     @property
+    def tags(self) -> List[str]:
+        """
+        Get the list of tag names for tagging tasks.
+
+        :return: List of tag names.
+        :rtype: List[str]
+        :raises AttributeError: If task type is not tagging.
+        """
+        if self.task_type == 'tagging':
+            return self.task_config['tags']
+        else:
+            raise AttributeError(f'No tags for {self.task_type} task.')
+
+    @property
     def num_values(self) -> int:
         """
         Get the number of values for regression tasks.
@@ -95,6 +123,34 @@ class TimmModelConfig(PretrainedConfig):
             return len(self.task_config['values'])
         else:
             raise AttributeError(f'No num values for {self.task_type} task.')
+
+    @property
+    def values(self) -> List[dict]:
+        """
+        Get the list of value configurations for regression tasks.
+
+        :return: List of value configuration dictionaries.
+        :rtype: List[dict]
+        :raises AttributeError: If task type is not regression.
+        """
+        if self.task_type == 'regression':
+            return self.task_config['values']
+        else:
+            raise AttributeError(f'No values for {self.task_type} task.')
+
+    @property
+    def value_names(self) -> List[str]:
+        """
+        Get the list of value names for regression tasks.
+
+        :return: List of value names.
+        :rtype: List[str]
+        :raises AttributeError: If task type is not regression.
+        """
+        if self.task_type == 'regression':
+            return [item['name'] for item in self.task_config['values']]
+        else:
+            raise AttributeError(f'No value names for {self.task_type} task.')
 
     @property
     def num_outputs(self) -> int:
