@@ -173,14 +173,14 @@ class TimmModelConfig(PretrainedConfig):
         else:
             raise ValueError(f'Unknown task type - {self.task_type!r}.')
 
-    def create_infer_layer(self):
+    def create_infer_head(self):
         """
-        Create the appropriate inference layer based on task type.
+        Create the appropriate inference head module based on task type.
 
         This method instantiates the correct inference head module for the
         configured task type, handling post-processing of model outputs.
 
-        :return: Inference layer module.
+        :return: Inference head module.
         :rtype: nn.Module
         :raises ValueError: If task type is unknown.
         """
