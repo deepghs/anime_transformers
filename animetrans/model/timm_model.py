@@ -207,6 +207,9 @@ class ClassificationInferHead(nn.Module):
 
     This module applies softmax activation to convert logits to probabilities
     for multi-class classification tasks.
+
+    :param classes: List of class names for the classification task.
+    :type classes: List[str]
     """
 
     def __init__(self, classes: List[str]):
@@ -227,6 +230,12 @@ class ClassificationInferHead(nn.Module):
         return self.softmax(x)
 
     def extra_repr(self) -> str:
+        """
+        Return extra information for module printing.
+
+        :return: String representation of module parameters.
+        :rtype: str
+        """
         return f'n_classes={self.n_classes!r}, classes={self.classes!r}'
 
 
@@ -236,6 +245,9 @@ class TaggingInferHead(nn.Module):
 
     This module applies sigmoid activation to convert logits to probabilities
     for multi-label tagging tasks where multiple tags can be active simultaneously.
+
+    :param tags: List of tag names for the tagging task.
+    :type tags: List[str]
     """
 
     def __init__(self, tags: List[str]):
@@ -256,6 +268,12 @@ class TaggingInferHead(nn.Module):
         return self.sigmoid(x)
 
     def extra_repr(self) -> str:
+        """
+        Return extra information for module printing.
+
+        :return: String representation of module parameters.
+        :rtype: str
+        """
         return f'n_tags={self.n_tags!r}, tags={self.tags!r}'
 
 
@@ -267,6 +285,8 @@ class RegressionInferHead(nn.Module):
     were normalized during training. It applies the inverse transformation
     to convert model outputs back to the original scale.
 
+    :param value_names: List of value names for the regression targets.
+    :type value_names: List[str]
     :param mean: Mean values used during normalization, length n.
     :type mean: List[float]
     :param std: Standard deviation values used during normalization, length n.
