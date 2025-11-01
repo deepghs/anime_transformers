@@ -185,15 +185,15 @@ class TimmModelConfig(PretrainedConfig):
         :raises ValueError: If task type is unknown.
         """
         if self.task_type == 'classification':
-            return ClassificationInferHead()
+            return ClassificationInferHead(self.classes)
         elif self.task_type == 'tagging':
-            return TaggingInferHead()
+            return TaggingInferHead(self.tags)
         elif self.task_type == 'regression':
             mean, std = [], []
             for item in self.task_config['values']:
                 mean.append(item['mean'])
                 std.append(item['std'])
-            return RegressionInferHead(mean, std)
+            return RegressionInferHead(self.value_names, mean, std)
         else:
             raise ValueError(f'Unknown task type - {self.task_type!r}.')
 
@@ -209,9 +209,11 @@ class ClassificationInferHead(nn.Module):
     for multi-class classification tasks.
     """
 
-    def __init__(self):
+    def __init__(self, classes: List[str]):
         super().__init__()
         self.softmax = nn.Softmax(dim=-1)
+        self.classes = classes
+        self.n_classes = len(classes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -224,6 +226,9 @@ class ClassificationInferHead(nn.Module):
         """
         return self.softmax(x)
 
+    def extra_repr(self) -> str:
+        return f'n_classes={self.n_classes!r}, classes={self.classes!r}'
+
 
 class TaggingInferHead(nn.Module):
     """
@@ -233,9 +238,11 @@ class TaggingInferHead(nn.Module):
     for multi-label tagging tasks where multiple tags can be active simultaneously.
     """
 
-    def __init__(self):
+    def __init__(self, tags: List[str]):
         super().__init__()
         self.sigmoid = nn.Sigmoid()
+        self.tags = tags
+        self.n_tags = len(tags)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -247,6 +254,9 @@ class TaggingInferHead(nn.Module):
         :rtype: torch.Tensor
         """
         return self.sigmoid(x)
+
+    def extra_repr(self) -> str:
+        return f'n_tags={self.n_tags!r}, tags={self.tags!r}'
 
 
 class RegressionInferHead(nn.Module):
@@ -263,8 +273,10 @@ class RegressionInferHead(nn.Module):
     :type std: List[float]
     """
 
-    def __init__(self, mean: List[float], std: List[float]):
+    def __init__(self, value_names: List[str], mean: List[float], std: List[float]):
         super().__init__()
+        self.value_names = value_names
+        self.n = len(value_names)
         self.register_buffer('mean', torch.tensor(mean, dtype=torch.float32))
         self.register_buffer('std', torch.tensor(std, dtype=torch.float32))
 
@@ -291,7 +303,8 @@ class RegressionInferHead(nn.Module):
         :return: String representation of module parameters.
         :rtype: str
         """
-        return f'n={self.mean.shape[-1]}'
+        return (f'n={self.n!r}, value_names={self.value_names!r}, '
+                f'mean={self.mean!r}, std={self.std!r}')
 
 
 class TimmModel(PreTrainedModel):
