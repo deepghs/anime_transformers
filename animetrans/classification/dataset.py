@@ -125,7 +125,7 @@ def load_dataloader(repo_id: str, preprocessor, class_key: str = 'class',
     from .augmentation import create_augmentation
     trans = create_augmentation(**dict(aug_args or {}))
     trans = T.Compose([
-        trans.transforms,
+        *trans.transforms,
         TransformersTrans(preprocessor),
     ])
     if is_main_process:
@@ -172,3 +172,4 @@ if __name__ == '__main__':
         preprocessor=load_preprocessor('hf-hub:animetimm/mobilenetv4_conv_aa_large.dbv4-full'),
     )
     print(ds)
+    print(ds[0])
