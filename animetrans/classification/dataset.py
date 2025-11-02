@@ -10,6 +10,7 @@ from ditk import logging
 from huggingface_hub import hf_hub_download
 from imgutils.data import load_image
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from animetrans.preprocess import load_preprocessor
 
@@ -167,9 +168,15 @@ def load_dataloader(repo_id: str, preprocessor, class_key: str = 'class',
 
 if __name__ == '__main__':
     logging.try_init_root(level=logging.INFO)
-    ds = load_dataloader(
+    train_dataloader = load_dataloader(
         repo_id='deepghs/ai-check-10k',
         preprocessor=load_preprocessor('hf-hub:animetimm/mobilenetv4_conv_aa_large.dbv4-full'),
+        split='train',
     )
-    print(ds)
-    print(ds[0])
+    print(train_dataloader)
+
+    for i, (inputs, labels_) in enumerate(tqdm(train_dataloader, desc=f'Iter Dataset')):
+        inputs = inputs.float()
+        labels_ = labels_
+
+        print(inputs.shape, inputs.dtype, labels_.shape, labels_.dtype)
