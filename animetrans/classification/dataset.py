@@ -171,3 +171,4 @@ if __name__ == '__main__':
         repo_id='deepghs/ai-check-10k',
         preprocessor=load_preprocessor('hf-hub:animetimm/mobilenetv4_conv_aa_large.dbv4-full'),
     )
+    print(ds)
