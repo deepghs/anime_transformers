@@ -6,6 +6,7 @@ from typing import Optional
 from huggingface_hub import hf_hub_download
 from huggingface_hub.errors import RepositoryNotFoundError, EntryNotFoundError
 from imgutils.preprocess import parse_torchvision_transforms
+from imgutils.preprocess.transformers import create_transforms_from_transformers
 from timm import create_model as _timm_create_model
 from timm.data import create_transform as _timm_create_transform, resolve_data_config
 from timm.models import parse_model_name
@@ -38,7 +39,7 @@ def load_preprocessor_from_timm(
             preprocess_json = json.load(f)
     except (RepositoryNotFoundError, EntryNotFoundError):
         timm_model = _timm_create_model(model_name=model_name, pretrained=False)
-        config = resolve_data_config({}, model=timm_model, use_test_size=True)
+        config = resolve_data_config(timm_model.pretrained_cfg, model=timm_model, use_test_size=True)
         trans = _timm_create_transform(**config, is_training=False)
         trans_config = parse_torchvision_transforms(trans)
     else:
@@ -70,9 +71,38 @@ def load_preprocessor_from_timm(
     return ImgutilsBasedImageProcessor(stages=trans_config)
 
 
-def load_preprocessor_from_transformers(model_name: str, **kwargs):
+def load_preprocessor_from_transformers(
+        model_name: str, use_pre_align: Optional[bool] = None, pre_align_size: int = 512,
+        size: Optional[int] = None, **kwargs
+):
     logging.info(f'Loading preprocessor of model {model_name!r} with transformers format ...')
-    return AutoImageProcessor.from_pretrained(model_name, trust_remote_code=True, **kwargs)
+    trans = AutoImageProcessor.from_pretrained(model_name, trust_remote_code=True, **kwargs)
+    trans_config = parse_torchvision_transforms(create_transforms_from_transformers(trans))
+
+    if use_pre_align is not None:
+        if use_pre_align and (not trans_config or trans_config[0]['type'] != 'pad_to_size'):
+            # need to add pre align
+            trans_config = [
+                {
+                    "background_color": "white",
+                    "interpolation": "bilinear",
+                    "size": [pre_align_size, pre_align_size],
+                    "type": "pad_to_size"
+                },
+                *trans_config,
+            ]
+        elif not use_pre_align and trans_config and trans_config[0]['type'] == 'pad_to_size':
+            # need to remove pre align
+            trans_config = trans_config[1:]
+
+    if size is not None:
+        for item in trans_config:
+            if item['type'] == 'resize':
+                item['size'] = size
+            elif item['type'] == 'center_crop':
+                item['size'] = [size, size]
+
+    return ImgutilsBasedImageProcessor(stages=trans_config)
 
 
 def load_preprocessor(model_name: str, hf_token: Optional[str] = None, **kwargs):
