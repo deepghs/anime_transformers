@@ -25,3 +25,5 @@ thop
 tabulate
 calflops
 transformers
+click>=8
+scikit-learn

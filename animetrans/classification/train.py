@@ -1,8 +1,11 @@
 import json
 import os.path
 import random
+from functools import partial
+from pprint import pformat
 from typing import Optional, Tuple
 
+import click
 import torch
 from accelerate import Accelerator
 from accelerate.utils import broadcast_object_list
@@ -23,6 +26,7 @@ from ..dataset import load_pretrained_tag
 from ..model import ModelStep, load_model
 from ..preprocess import load_preprocessor
 from ..session import TrainSession
+from ..utils import parse_key_value, GLOBAL_CONTEXT_SETTINGS, print_version
 
 _DEFAULT_BETAS = (0.9, 0.999)
 
@@ -31,7 +35,7 @@ def train(
         workdir: str,
         dataset_repo_id: str,
         model_name: str,
-        num_workers: int = 16,
+        num_workers: int = 32,
         max_epochs: int = 50,
         batch_size: int = 32,
         learning_rate: float = 1e-4,
@@ -411,10 +415,70 @@ def train(
                     )
 
 
-if __name__ == '__main__':
-    logging.try_init_root(level=logging.INFO)
+@click.command(context_settings={**GLOBAL_CONTEXT_SETTINGS}, help="Training single-label classification models.")
+@click.option('-v', '--version', is_flag=True,
+              callback=partial(print_version, 'animetrans.classification.train'), expose_value=False, is_eager=True)
+@click.option('--dataset-repo-id', '-ds', required=True, help='Dataset repository to use. '
+                                                              '-s option will be ignored when -ds is used.',
+              show_default=True)
+@click.option('--max-epochs', '-mep', default=100, type=int, help='Maximum number of epochs', show_default=True)
+@click.option('--model-name', '-m', default='caformer_s36.sail_in22k_ft_in1k_384', help='Model name', show_default=True)
+@click.option('--num-workers', '-nw', default=32, type=int, help='Number of workers', show_default=True)
+@click.option('--batch-size', '-bs', default=32, type=int, help='Batch size', show_default=True)
+@click.option('--learning-rate', '-lr', default=1e-4, type=float, help='Learning rate', show_default=True)
+@click.option('--weight-decay', '-wd', default=1e-3, type=float, help='Weight decay', show_default=True)
+@click.option('--key-metric', '-km', default='macro_f1', help='Key metric for evaluation', show_default=True)
+@click.option('--seed', type=int, default=0, help='Random seed', show_default=True)
+@click.option('--eval-epoch', '-ee', default=1, type=int, help='Evaluation epoch interval', show_default=True)
+@click.option('--workdir', '-w', default=None, type=str, help='Workdir to save training data', show_default=True)
+@click.option('--suffix', '-sf', 'suffix', default='', type=str, help='Work directory suffix', show_default=True)
+@click.option('--image_key', '-ik', default='webp', type=str, help='Image key in webdataset.', show_default=True)
+@click.option('--class_key', '-ck', default='class', type=str, help='Class key in webdataset.', show_default=True)
+@click.option('--model-arg', '-ma', multiple=True, callback=parse_key_value,
+              help='Additional model arguments in format KEY=VALUE. Types are auto-detected.\n'
+                   'Use KEY:str=VALUE to force string type.\n'
+                   'Supported type hints: str, int, float, bool, none, list.\n'
+                   'Examples:\n'
+                   '--model-arg depth=12\n'
+                   '--model-arg embed_dim=768\n'
+                   '--model-arg use_cls_token:bool=true\n'
+                   '--model-arg name:str=123\n'
+                   '--model-arg layers:list=1,2,3',
+              show_default=True)
+@click.option('--aug-arg', '-aa', multiple=True, callback=parse_key_value,
+              help='Additional augmentation arguments in format KEY=VALUE. Types are auto-detected.')
+@click.option('--preprocess-arg', '-pa', multiple=True, callback=parse_key_value,
+              help='Additional preprocessor arguments in format KEY=VALUE. Types are auto-detected.')
+def cli(dataset_repo_id, max_epochs, model_name, num_workers, batch_size, learning_rate, weight_decay,
+        key_metric, seed, eval_epoch, workdir, model_arg, aug_arg, preprocess_arg, image_key, class_key, suffix):
+    logging.try_init_root(logging.INFO)
+
+    rmn = model_name.replace('/', '_').replace(':', '_').replace('\\', '_')
+    logging.info(f'Model args to use:\n{pformat(model_arg)}')
+
+    pretrained_tag = load_pretrained_tag(dataset_repo_id)
+    workdir = workdir or f'runs/{rmn}_{pretrained_tag}_bs{batch_size}_mep{max_epochs}{f"_{suffix}" if suffix else ""}'
+    logging.info(f'Training on dataset {dataset_repo_id!r}, workdir: {workdir!r}.')
+
     train(
-        workdir='runs/mb_test_10k',
-        dataset_repo_id='deepghs/ai-check-10k',
-        model_name='hf-hub:animetimm/mobilenetv4_conv_aa_large.dbv4-full',
+        workdir=workdir,
+        dataset_repo_id=dataset_repo_id,
+        model_name=model_name,
+        num_workers=num_workers,
+        batch_size=batch_size,
+        learning_rate=learning_rate,
+        weight_decay=weight_decay,
+        key_metric=key_metric,
+        seed=seed,
+        eval_epoch=eval_epoch,
+        model_args=model_arg,
+        aug_args=aug_arg,
+        preprocess_args=preprocess_arg,
+        max_epochs=max_epochs,
+        class_key=class_key,
+        image_key=image_key,
     )
+
+
+if __name__ == '__main__':
+    cli()
