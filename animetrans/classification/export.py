@@ -14,7 +14,7 @@ from accelerate import Accelerator
 from ditk import logging
 from hbutils.encoding import sha3
 from hfutils.operate import get_hf_client, upload_directory_as_directory
-from hfutils.repository import hf_hub_repo_url
+from hfutils.repository import hf_hub_repo_url, hf_hub_repo_file_url
 from huggingface_hub import hf_hub_url
 from thop import clever_format
 from timm.models import parse_model_name
@@ -291,9 +291,12 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
             }
             s_records = [{
                 '#': 'Validation',
-                'Confusion': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='eval_plt_confusion.png')})",
-                'P/R': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='eval_plt_pr.png')})",
-                'F1': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='eval_plt_f1.png')})",
+                'Confusion': f"[![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='eval_plt_confusion.png')})]"
+                             f"({hf_hub_repo_file_url(repo_id=repo_id, repo_type='model', path='eval_plt_confusion.png')})",
+                'P/R': f"[![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='eval_plt_pr.png')})]"
+                       f"({hf_hub_repo_file_url(repo_id=repo_id, repo_type='model', path='eval_plt_pr.png')})",
+                'F1': f"[![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='eval_plt_f1.png')})]"
+                      f"({hf_hub_repo_file_url(repo_id=repo_id, repo_type='model', path='eval_plt_f1.png')})",
             }]
             if test_step_info:
                 for key, value in test_step_info.metrics.items():
@@ -308,9 +311,12 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
                 }
                 s_records.append({
                     '#': 'Test',
-                    'Confusion': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='test_plt_confusion.png')})",
-                    'P/R': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='test_plt_pr.png')})",
-                    'F1': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='test_plt_f1.png')})",
+                    'Confusion': f"[![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='test_plt_confusion.png')})]"
+                                 f"({hf_hub_repo_file_url(repo_id=repo_id, repo_type='model', path='test_plt_confusion.png')})",
+                    'P/R': f"[![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='test_plt_pr.png')})]"
+                           f"({hf_hub_repo_file_url(repo_id=repo_id, repo_type='model', path='test_plt_pr.png')})",
+                    'F1': f"[![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='test_plt_f1.png')})]"
+                          f"({hf_hub_repo_file_url(repo_id=repo_id, repo_type='model', path='test_plt_f1.png')})",
                 })
             df_s = pd.DataFrame(s_records)
             print(df_s.to_markdown(index=False, stralign='center', numalign='center'), file=f)
