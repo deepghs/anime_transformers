@@ -281,41 +281,43 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
             for key, value in eval_step_info.metrics.items():
                 if isinstance(value, Image.Image):
                     value.save(os.path.join(upload_dir, f'eval_{key}.png'))
-            with open(os.path.join(upload_dir, 'eval_metrics.json'), 'w') as mf:
-                json.dump({
-                    'epoch': eval_step_info.epoch,
-                    **{
-                        key: value for key, value in eval_step_info.metrics.items()
-                        if not isinstance(value, Image.Image)
-                    },
-                }, mf, ensure_ascii=False, sort_keys=True, indent=4)
+            metrics_info = {}
+            metrics_info['eval'] = {
+                'epoch': eval_step_info.epoch,
+                **{
+                    key: value for key, value in eval_step_info.metrics.items()
+                    if not isinstance(value, Image.Image)
+                },
+            }
             s_records = [{
                 '#': 'Validation',
-                f'Confusion': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='eval_plt_confusion.png')})",
-                'P/R': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='eval_plt_pr.png')}",
-                'F1': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='eval_plt_f1.png')}",
+                'Confusion': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='eval_plt_confusion.png')})",
+                'P/R': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='eval_plt_pr.png')})",
+                'F1': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='eval_plt_f1.png')})",
             }]
             if test_step_info:
                 for key, value in test_step_info.metrics.items():
                     if isinstance(value, Image.Image):
                         value.save(os.path.join(upload_dir, f'test_{key}.png'))
-                with open(os.path.join(upload_dir, 'test_metrics.json'), 'w') as mf:
-                    json.dump({
-                        'epoch': test_step_info.epoch,
-                        **{
-                            key: value for key, value in test_step_info.metrics.items()
-                            if not isinstance(value, Image.Image)
-                        },
-                    }, mf, ensure_ascii=False, sort_keys=True, indent=4)
+                metrics_info['test'] = {
+                    'epoch': test_step_info.epoch,
+                    **{
+                        key: value for key, value in test_step_info.metrics.items()
+                        if not isinstance(value, Image.Image)
+                    },
+                }
                 s_records.append({
                     '#': 'Test',
-                    f'Confusion': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='test_plt_confusion.png')}",
-                    'P/R': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='test_plt_pr.png')}",
-                    'F1': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='test_plt_f1.png')}",
+                    'Confusion': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='test_plt_confusion.png')})",
+                    'P/R': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='test_plt_pr.png')})",
+                    'F1': f"![]({hf_hub_url(repo_id=repo_id, repo_type='model', filename='test_plt_f1.png')})",
                 })
             df_s = pd.DataFrame(s_records)
             print(df_s.to_markdown(index=False, stralign='center', numalign='center'), file=f)
             print(f'', file=f)
+
+            with open(os.path.join(upload_dir, 'metrics.json'), 'w') as mf:
+                json.dump(metrics_info, mf, ensure_ascii=False, sort_keys=True, indent=4)
 
         upload_directory_as_directory(
             repo_id=repo_id,
