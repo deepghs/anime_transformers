@@ -5,7 +5,6 @@ from pprint import pformat
 
 import click
 import torch
-from PIL import Image
 from accelerate import Accelerator
 from ditk import logging
 from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score, top_k_accuracy_score
@@ -17,7 +16,7 @@ from .plot_cm import plt_confusion_matrix
 from .plot_export import plt_export
 from .plot_pr import plt_multiclass_metrics, plt_f1_scores
 from ..dataset import load_pretrained_tag
-from ..model import ModelStep
+from ..model import ModelStep, StepInfo
 from ..utils import GLOBAL_CONTEXT_SETTINGS, print_version
 
 
@@ -174,20 +173,7 @@ def test(workdir: str, num_workers: int = 32, batch_size: int = 32, force: bool 
                 logging.info(f'Test complete, result:\n{pformat(metrics)}')
 
                 os.makedirs(metrics_dir, exist_ok=True)
-                metrics_to_save = {}
-                images_to_save = {}
-                for key, value in metrics.items():
-                    if not isinstance(value, Image.Image):
-                        metrics_to_save[key] = value
-                    else:
-                        images_to_save[key] = value
-                for key, value in images_to_save.items():
-                    value.save(os.path.join(metrics_dir, f'{key}.png'))
-                with open(os.path.join(metrics_dir, 'metrics.json'), 'w') as f:
-                    json.dump({
-                        'epoch': epoch,
-                        **metrics_to_save,
-                    }, f, sort_keys=True, ensure_ascii=False, indent=4)
+                StepInfo(epoch=epoch, metrics=metrics).save_to_dir(metrics_dir)
                 logging.info(f'Test metrics saved at {metrics_dir!r}')
 
 

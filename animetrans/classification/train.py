@@ -128,6 +128,7 @@ def train(
         with open(os.path.join(workdir, 'meta.json'), 'w') as f:
             json.dump({
                 'model_name': model.config.model_name,
+                'task_type': 'classification',
                 'classes': classes_info.classes,
                 'model_args': model.config.model_args,
                 'train': train_cfg,

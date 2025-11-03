@@ -11,14 +11,12 @@ from .timm_model import TimmModel
 
 
 @dataclass
-class ModelStep:
-    model: TimmModel
+class StepInfo:
     epoch: int
     metrics: Dict[str, Union[str, float, Image.Image]]
 
     def save_to_dir(self, directory: str):
         os.makedirs(directory, exist_ok=True)
-        self.model.save_pretrained(directory)
         metrics_to_save = {}
         images_to_save = {}
         for key, value in self.metrics.items():
@@ -35,8 +33,7 @@ class ModelStep:
             value.save(os.path.join(directory, f'{key}.png'))
 
     @classmethod
-    def load_from_dir(cls, directory: str) -> 'ModelStep':
-        model = AutoModel.from_pretrained(directory, trust_remote_code=True)
+    def load_from_dir(cls, directory: str) -> 'StepInfo':
         with open(os.path.join(directory, 'metrics.json'), 'r') as f:
             metrics = json.load(f)
         epoch = metrics.pop('epoch')
@@ -47,7 +44,24 @@ class ModelStep:
             metrics[key] = image
 
         return cls(
-            model=model,
             epoch=epoch,
             metrics=metrics,
         )
+
+
+@dataclass
+class ModelStep:
+    model: TimmModel
+    epoch: int
+    metrics: Dict[str, Union[str, float, Image.Image]]
+
+    def save_to_dir(self, directory: str):
+        os.makedirs(directory, exist_ok=True)
+        self.model.save_pretrained(directory)
+        StepInfo(epoch=self.epoch, metrics=self.metrics).save_to_dir(directory)
+
+    @classmethod
+    def load_from_dir(cls, directory: str) -> 'ModelStep':
+        model = AutoModel.from_pretrained(directory, trust_remote_code=True)
+        info = StepInfo.load_from_dir(directory)
+        return cls(model=model, epoch=info.epoch, metrics=info.metrics)
