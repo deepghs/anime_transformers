@@ -121,6 +121,7 @@ def train(
         'class_key': class_key,
         'adam_betas': adam_betas,
         'eval_epoch': eval_epoch,
+        'num_topk': num_topk,
     }
     if accelerator.is_main_process:
         logging.info(f'Training configurations: {train_cfg!r}.')

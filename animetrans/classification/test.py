@@ -1,0 +1,194 @@
+import json
+import os
+from pprint import pformat
+
+import torch
+from PIL import Image
+from accelerate import Accelerator
+from ditk import logging
+from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score, top_k_accuracy_score
+from tqdm import tqdm
+from transformers import AutoModel, AutoImageProcessor
+
+from .dataset import load_dataloader, load_classes
+from .plot_cm import plt_confusion_matrix
+from .plot_export import plt_export
+from .plot_pr import plt_multiclass_metrics, plt_f1_scores
+from ..dataset import load_pretrained_tag
+from ..model import ModelStep
+
+
+def test(workdir: str, num_workers: int = 32, batch_size: int = 32, force: bool = False, ckpt_name: str = 'best'):
+    model_ckpt_dir = os.path.join(workdir, 'checkpoints', ckpt_name)
+    metrics_dir = os.path.join(model_ckpt_dir, 'test')
+
+    if os.path.exists(os.path.join(metrics_dir, 'metrics.json')) and not force:
+        logging.info(f'Already checkpoint {ckpt_name!r} tested for {workdir}, skipped.')
+        return
+
+    accelerator = Accelerator(
+        # mixed_precision=self.cfgs.mixed_precision,
+        step_scheduler_with_optimizer=False,
+    )
+
+    with open(os.path.join(workdir, 'meta.json'), 'r') as f:
+        meta_info = json.load(f)
+
+    image_key, class_key = meta_info['train']['image_key'], meta_info['train']['class_key']
+    dataset_repo_id = meta_info['train']['dataset']
+    classes_info = load_classes(repo_id=dataset_repo_id)
+    pretrained_tag = meta_info['train'].get('pretrained_tag') or load_pretrained_tag(dataset_repo_id)
+    logging.info(f'Pretrained tag {pretrained_tag!r} found for dataset {dataset_repo_id!r}.')
+    num_topk = meta_info['train'].get('num_topk')
+    if num_topk is None:
+        num_topk = max(min(len(classes_info.classes) // 2, 5), 1)
+    key_metric = meta_info['train']['key_metric']
+    accelerator.wait_for_everyone()
+
+    model_step = ModelStep.load_from_dir(model_ckpt_dir)
+    epoch = model_step.epoch
+    if accelerator.is_main_process:
+        logging.info(f'Model loaded from {model_ckpt_dir!r}, '
+                     f'with key metric {key_metric!r} value {model_step.metrics[key_metric]!r}.')
+
+    model = AutoModel.from_pretrained(model_ckpt_dir, trust_remote_code=True)
+    if accelerator.is_main_process:
+        logging.info(f'Model loaded:\n{model!r}')
+
+    preprocessor_dir = os.path.join(workdir, 'preprocessor')
+    preprocessor = AutoImageProcessor.from_pretrained(preprocessor_dir, trust_remote_code=True)
+    if accelerator.is_main_process:
+        logging.info(f'Preprocessor loaded from {preprocessor_dir!r}:\n{preprocessor!r}')
+
+    test_dataloader = load_dataloader(
+        repo_id=dataset_repo_id,
+        preprocessor=preprocessor,
+        class_key=class_key,
+        split='test',
+        aug_args={},
+        batch_size=batch_size,
+        num_workers=num_workers,
+        is_main_process=accelerator.is_main_process,
+        image_key=image_key,
+    )
+
+    infer_head = model.config.create_infer_head()
+    model, infer_head, test_dataloader = accelerator.prepare(model, infer_head, test_dataloader)
+    if accelerator.is_main_process:
+        logging.info(f'Model Class: {type(model)!r}')
+        logging.info('Testing start!')
+
+    infer_head.eval()
+    model.eval()
+
+    with torch.no_grad():
+        model.eval()
+
+        with torch.no_grad():
+            test_total = 0
+            y_true, y_pred, y_score = [], [], []
+
+            for i, (inputs, labels_) in enumerate(tqdm(test_dataloader, disable=not accelerator.is_main_process)):
+                inputs = inputs.float()
+                labels_ = labels_
+
+                outputs = model(inputs)
+                test_total += labels_.shape[0]
+
+                y_true.append(labels_.clone().detach())
+                y_pred.append(torch.argmax(outputs, dim=-1).detach())
+                y_score.append(infer_head(outputs).detach())
+
+                if i % 10 == 0:
+                    accelerator.wait_for_everyone()
+
+            accelerator.wait_for_everyone()
+
+            y_true = torch.concat(y_true)
+            y_pred = torch.concat(y_pred)
+            y_score = torch.concat(y_score)
+
+            y_true = accelerator.gather(y_true).detach().cpu().numpy()
+            y_pred = accelerator.gather(y_pred).detach().cpu().numpy()
+            y_score = accelerator.gather(y_score).detach().cpu().numpy()
+
+            if accelerator.is_main_process:
+                macro_f1 = f1_score(y_true, y_pred, average='macro', zero_division=0.0)
+                macro_precision = precision_score(y_true, y_pred, average='macro', zero_division=0.0)
+                macro_recall = recall_score(y_true, y_pred, average='macro', zero_division=0.0)
+                if len(classes_info.classes) > 2:
+                    macro_auc = roc_auc_score(y_true, y_score, multi_class='ovr', average='macro')
+                else:
+                    macro_auc = roc_auc_score(y_true, y_score[:, 1], average='macro')
+
+                micro_f1 = f1_score(y_true, y_pred, average='micro', zero_division=0.0)
+                micro_precision = precision_score(y_true, y_pred, average='micro', zero_division=0.0)
+                micro_recall = recall_score(y_true, y_pred, average='micro', zero_division=0.0)
+                if len(classes_info.classes) > 2:
+                    micro_auc = roc_auc_score(y_true, y_score, multi_class='ovr', average='micro')
+                else:
+                    micro_auc = roc_auc_score(y_true, y_score[:, 1], average='micro')
+
+                metrics = {
+                    'accuracy': top_k_accuracy_score(
+                        y_true,
+                        y_score if len(classes_info.classes) > 2 else y_score[:, 1],
+                        labels=list(range(len(classes_info.classes))), k=1
+                    ),
+                    f'top-{num_topk}': top_k_accuracy_score(
+                        y_true,
+                        y_score if len(classes_info.classes) > 2 else y_score[:, 1],
+                        labels=list(range(len(classes_info.classes))), k=num_topk
+                    ),
+                    'macro_f1': macro_f1,
+                    'macro_precision': macro_precision,
+                    'macro_recall': macro_recall,
+                    'macro_auc': macro_auc,
+                    'micro_f1': micro_f1,
+                    'micro_precision': micro_precision,
+                    'micro_recall': micro_recall,
+                    'micro_auc': micro_auc,
+                    'plt_confusion': plt_export(
+                        plt_confusion_matrix,
+                        y_true, y_pred,
+                        labels=classes_info.classes,
+                        title=f'Confusion Matrix on Eval #{epoch}',
+                        normalize='true',
+                    ),
+                    'plt_pr': plt_export(
+                        plt_multiclass_metrics,
+                        y_true, y_score,
+                        labels=classes_info.classes,
+                        title=f'Precision-Recall Curves on Eval #{epoch}',
+                    ),
+                    'plt_f1': plt_export(
+                        plt_f1_scores,
+                        y_true, y_score,
+                        labels=classes_info.classes,
+                        title=f'F1 Scores vs Threshold on Eval #{epoch}'
+                    ),
+                }
+                logging.info(f'Test complete, result:\n{pformat(metrics)}')
+
+                metrics_to_save = {}
+                images_to_save = {}
+                for key, value in metrics.items():
+                    if not isinstance(value, Image.Image):
+                        metrics_to_save[key] = value
+                    else:
+                        images_to_save[key] = value
+                for key, value in images_to_save.items():
+                    value.save(os.path.join(metrics_dir, f'{key}.png'))
+                with open(os.path.join(metrics_dir, 'metrics.json'), 'w') as f:
+                    json.dump({
+                        'epoch': epoch,
+                        **metrics_to_save,
+                    }, f, sort_keys=True, ensure_ascii=False, indent=4)
+                logging.info(f'Test metrics saved at {metrics_dir!r}')
+
+
+if __name__ == '__main__':
+    logging.try_init_root(level=logging.INFO)
+    test(
+        workdir='hf-hub_animetimm_mobilenetv4_conv_aa_large.dbv4-full_ai-check-10k_bs32_mep50',
+    )
