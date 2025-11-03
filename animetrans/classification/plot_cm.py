@@ -53,7 +53,7 @@ def plt_confusion_matrix(ax: Axes, y_true: Union[List, np.ndarray], y_pred: Unio
     :param show_percentages: Whether to display percentage values alongside the main values.
     :type show_percentages: bool
 
-    :return: The modified axes object with the plotted F1 curves.
+    :return: The modified axes object with the plotted confusion matrix.
     :rtype: matplotlib.axes.Axes
 
     Example:
@@ -98,12 +98,12 @@ def plt_confusion_matrix(ax: Axes, y_true: Union[List, np.ndarray], y_pred: Unio
     tick_marks = np.arange(n_classes)
     ax.set_xticks(tick_marks)
     ax.set_yticks(tick_marks)
-    ax.set_xticklabels(labels, rotation=45, ha='right')
-    ax.set_yticklabels(labels, rotation=0, va='center')
+    ax.set_xticklabels(labels, rotation=30, ha='right', fontsize=10)
+    ax.set_yticklabels(labels, rotation=0, va='center', fontsize=10)
 
-    # Set axis labels
-    ax.set_xlabel('Predicted Label', fontsize=12, fontweight='bold')
-    ax.set_ylabel('True Label', fontsize=12, fontweight='bold')
+    # Set axis labels with smaller font
+    ax.set_xlabel('Predicted Label', fontsize=11, fontweight='bold')
+    ax.set_ylabel('True Label', fontsize=11, fontweight='bold')
 
     # Add numerical annotations
     if show_values:
@@ -128,16 +128,17 @@ def plt_confusion_matrix(ax: Axes, y_true: Union[List, np.ndarray], y_pred: Unio
                         text += f'\n({pct:.1f}%)'
 
                 ax.text(j, i, text, ha='center', va='center',
-                        color=text_color, fontsize=10, fontweight='bold')
+                        color=text_color, fontsize=9, fontweight='bold')  # Reduced font size
 
-    # Add colorbar
-    cbar = fig = ax.get_figure().colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    # Add colorbar with adjusted size
+    fig = ax.get_figure()
+    cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04, shrink=0.8)  # Added shrink parameter
     if normalize == 'true':
-        cbar.set_label('True Positive Rate', rotation=270, labelpad=20, fontsize=11)
+        cbar.set_label('True Positive Rate', rotation=270, labelpad=15, fontsize=10)
     elif normalize == 'pred':
-        cbar.set_label('Positive Predictive Value', rotation=270, labelpad=20, fontsize=11)
+        cbar.set_label('Positive Predictive Value', rotation=270, labelpad=15, fontsize=10)
     else:
-        cbar.set_label('Number of Samples', rotation=270, labelpad=20, fontsize=11)
+        cbar.set_label('Number of Samples', rotation=270, labelpad=15, fontsize=10)
 
     # Calculate accuracy and other metrics
     accuracy = np.trace(cm_counts) / np.sum(cm_counts)
@@ -160,7 +161,7 @@ def plt_confusion_matrix(ax: Axes, y_true: Union[List, np.ndarray], y_pred: Unio
         recall_per_class.append(recall)
         f1_per_class.append(f1)
 
-    # Set title (including key metrics)
+    # Set title (including key metrics) - Simplified title
     normalize_str = f" ({normalize} normalized)" if normalize else ""
     full_title = f"{title}{normalize_str}\n"
     if sampled_count is not None:
@@ -168,7 +169,7 @@ def plt_confusion_matrix(ax: Axes, y_true: Union[List, np.ndarray], y_pred: Unio
     else:
         full_title += f"Accuracy: {accuracy:.3f}"
 
-    ax.set_title(full_title, fontsize=14, fontweight='bold', pad=20)
+    ax.set_title(full_title, fontsize=12, fontweight='bold', pad=15)  # Reduced font size and padding
 
     # Beautify grid
     ax.set_xlim(-0.5, n_classes - 0.5)
@@ -182,7 +183,8 @@ def plt_confusion_matrix(ax: Axes, y_true: Union[List, np.ndarray], y_pred: Unio
     # Highlight diagonal (correct predictions)
     for i in range(n_classes):
         rect = plt.Rectangle((i - 0.4, i - 0.4), 0.8, 0.8,
-                             fill=False, edgecolor='gold', linewidth=3, alpha=0.8)
+                             fill=False, edgecolor='gold', linewidth=2, alpha=0.8)  # Reduced line width
         ax.add_patch(rect)
 
+    fig.tight_layout()
     return ax
