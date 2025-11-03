@@ -56,7 +56,7 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
         with open(meta_info_file, 'r') as f:
             meta_info = json.load(f)
 
-        task_type = meta_info['task_type']
+        task_type = meta_info.get('task_type', 'classification')
         if task_type != 'classification':
             raise RuntimeError(f'Workdir {workdir!r} is not a classification task, but {task_type!r} instead.')
 
