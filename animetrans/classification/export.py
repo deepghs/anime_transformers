@@ -23,7 +23,7 @@ from ..dataset import load_pretrained_tag
 from ..model import StepInfo
 from ..onnx import export_model_to_onnx, ExportedONNXNotUniqueError
 from ..utils import torch_model_profile_via_calflops, is_tensorboard_has_content, GLOBAL_CONTEXT_SETTINGS, \
-    print_version, VALID_LICENCES
+    print_version, VALID_LICENCES, add_metadata_to_safetensors
 
 _LOG_FILE_PATTERN = re.compile(r'^events\.out\.tfevents\.(?P<timestamp>\d+)\.(?P<machine>[^.]+)\.(?P<extra>[\s\S]+)$')
 
@@ -134,6 +134,14 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
             'source': 'https://github.com/deepghs/anime_transformers',
         }
 
+        for safetensors_file in glob.glob(os.path.join(upload_dir, '*.safetensors')):
+            logging.info(f'Adding metadata for safetensors file {safetensors_file!r} ...')
+            add_metadata_to_safetensors(
+                input_path=safetensors_file,
+                output_path=safetensors_file,
+                new_metadata=mark_info,
+            )
+
         if not no_onnx_export:
             onnx_file = os.path.join(upload_dir, 'model.onnx')
             logging.info(f'Dumping to onnx file {onnx_file!r} ...')
@@ -233,7 +241,7 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
 @click.option('--num-workers', '-nw', default=32, type=int, help='Number of workers', show_default=True)
 @click.option('--batch-size', '-bs', default=32, type=int, help='Batch size', show_default=True)
 @click.option('--workdir', '-w', default=None, type=str, help='Workdir to save training data', show_default=True)
-@click.option('--non-force/--force', 'force',default=False, help='Force re-calculate.', show_default=True)
+@click.option('--non-force/--force', 'force', default=False, help='Force re-calculate.', show_default=True)
 @click.option('--need-metrics/--no-metrics', default=True, help='Need metrics to get tested.', show_default=True)
 @click.option('--visibility', '-V', default='manual', type=click.Choice(['private', 'public', 'gated', 'manual']),
               help='Visibility when creating model repository (will be ignored when model repository already exist.',
