@@ -24,19 +24,19 @@ from ..utils import GLOBAL_CONTEXT_SETTINGS, print_version
 def test(workdir: str, num_workers: int = 32, batch_size: int = 32, force: bool = False,
          accelerator: Optional[Accelerator] = None, ckpt_name: str = 'best'):
     model_ckpt_dir = os.path.join(workdir, 'checkpoints', ckpt_name)
+    eval_step_info = StepInfo.load_from_dir(model_ckpt_dir)
     metrics_dir = os.path.join(model_ckpt_dir, 'test')
 
-    if os.path.exists(os.path.join(metrics_dir, 'metrics.json')) and not force:
-        logging.info(f'Already checkpoint {ckpt_name!r} tested for {workdir}, skipped.')
-        return
+    if not force and os.path.exists(os.path.join(metrics_dir, 'metrics.json')):
+        test_step_info = StepInfo.load_from_dir(metrics_dir)
+        if test_step_info.epoch == eval_step_info.epoch:
+            logging.info(f'Already checkpoint {ckpt_name!r} tested for {workdir}, skipped.')
+            return
 
     accelerator = accelerator or Accelerator(
         # mixed_precision=self.cfgs.mixed_precision,
         step_scheduler_with_optimizer=False,
     )
-    if accelerator.is_main_process:
-        logging.info('Start for testings ...')
-    return
 
     with open(os.path.join(workdir, 'meta.json'), 'r') as f:
         meta_info = json.load(f)
