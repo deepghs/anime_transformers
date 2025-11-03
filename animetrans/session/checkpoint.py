@@ -37,7 +37,7 @@ class CheckpointLogger(BaseLogger):
     def _load_last(self):
         if os.path.exists(self._last_step_dir):
             model_step = self._load_model_step(self._last_step_dir)
-            self._last_step = model_step.metrics['epoch']
+            self._last_step = model_step.epoch
             logging.info(f'Last ckpt found at {self._last_step}, with previous step {self._last_step}')
         else:
             self._last_step = None
@@ -56,7 +56,7 @@ class CheckpointLogger(BaseLogger):
         if os.path.exists(self._best_step_dir):
             model_step = self._load_model_step(self._best_step_dir)
             self._best_metric_value = model_step.metrics[self.key_metric]
-            step = model_step.metrics['epoch']
+            step = model_step.epoch
             logging.info(f'Best ckpt found at {self._best_step_dir}, '
                          f'with step {step} and {self.key_metric} {self._best_metric_value:.3f}')
         else:
