@@ -247,7 +247,7 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
               help='OpSet Version of ONNX Export.', show_default=True)
 @click.option('--no-onnx-export', 'no_onnx_export', is_flag=True, default=False, type=bool,
               help='No ONNX model to export, just save the weights.', show_default=True)
-@click.option('-ns', '--namespace', 'namespace', default='animetimm', type=str, show_default=True,
+@click.option('-ns', '--namespace', 'namespace', default='deepghs', type=str, show_default=True,
               help='Namespace for the publish repository')
 @click.option('--ckpt-name', '-c', 'ckpt_name', default='best', help='Name of the checkpoint to test',
               show_default=True)
