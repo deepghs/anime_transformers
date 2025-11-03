@@ -34,6 +34,9 @@ def test(workdir: str, num_workers: int = 32, batch_size: int = 32, force: bool 
         # mixed_precision=self.cfgs.mixed_precision,
         step_scheduler_with_optimizer=False,
     )
+    if accelerator.is_main_process:
+        logging.info('Start for testings ...')
+    return
 
     with open(os.path.join(workdir, 'meta.json'), 'r') as f:
         meta_info = json.load(f)
