@@ -170,6 +170,7 @@ def test(workdir: str, num_workers: int = 32, batch_size: int = 32, force: bool 
                 }
                 logging.info(f'Test complete, result:\n{pformat(metrics)}')
 
+                os.makedirs(metrics_dir, exist_ok=True)
                 metrics_to_save = {}
                 images_to_save = {}
                 for key, value in metrics.items():
