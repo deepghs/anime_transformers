@@ -105,6 +105,7 @@ def train(
     if num_topk is None:
         num_topk = max(min(len(classes_info.classes) // 2, 5), 1)
     train_cfg = {
+        'model_name': model_name,
         'batch_size': batch_size,
         'max_epochs': max_epochs,
         'seed': seed,

@@ -9,17 +9,36 @@ from typing import Optional, Literal, List
 from PIL import Image
 from ditk import logging
 from hbutils.encoding import sha3
-from hfutils.operate import get_hf_client
+from hfutils.operate import get_hf_client, upload_directory_as_directory
+from hfutils.repository import hf_hub_repo_url
+from thop import clever_format
+from timm.models import parse_model_name
 from transformers import AutoModel, AutoImageProcessor
 
 from ..dataset import load_pretrained_tag
+from ..model import StepInfo
 from ..onnx import export_model_to_onnx, ExportedONNXNotUniqueError
 from ..utils import torch_model_profile_via_calflops, is_tensorboard_has_content
 
 _LOG_FILE_PATTERN = re.compile(r'^events\.out\.tfevents\.(?P<timestamp>\d+)\.(?P<machine>[^.]+)\.(?P<extra>[\s\S]+)$')
 
 
-def export(workdir: str, repo_id: Optional[str] = None,
+def _get_timm_repo_id(timm_model_name: str):
+    model_source, model_name = parse_model_name(timm_model_name)
+    if model_source == 'hf-hub':
+        return model_name
+    else:
+        return f'timm/{model_name}'
+
+
+def _get_base_model_repo_id(model_name: str):
+    if '/' not in model_name or 'hf-hub:' in model_name:
+        return _get_timm_repo_id(model_name)
+    else:
+        return model_name
+
+
+def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
            visibility: Literal['private', 'public', 'gated', 'manual'] = 'private',
            logfile_anonymous: bool = True, append_tags: Optional[List[str]] = None,
            title: Optional[str] = None, description: Optional[str] = None, license: str = 'mit',
@@ -32,15 +51,13 @@ def export(workdir: str, repo_id: Optional[str] = None,
         with open(meta_info_file, 'r') as f:
             meta_info = json.load(f)
 
-        class_key = meta_info['class_key']
-        image_key = meta_info['image_key']
         task_type = meta_info['task_type']
         if task_type != 'classification':
             raise RuntimeError(f'Workdir {workdir!r} is not a classification task, but {task_type!r} instead.')
 
         dataset_repo_id = meta_info['train']['dataset']
         checkpoints = os.path.join(workdir, 'checkpoints')
-        best_ckpt_dir = os.path.join(checkpoints, 'best')
+        best_ckpt_dir = os.path.join(checkpoints, ckpt_name)
         logging.info(f'Loading model from {best_ckpt_dir!r} ...')
         model = AutoModel.from_pretrained(best_ckpt_dir, trust_remote_code=True, use_infer_head=True)
         logging.info(f'Model loaded:\n{model!r}')
@@ -80,6 +97,37 @@ def export(workdir: str, repo_id: Optional[str] = None,
         with open(new_meta_file, 'w') as f:
             json.dump(meta_info, f, indent=4, sort_keys=True, ensure_ascii=False)
 
+        eval_step_info = StepInfo.load_from_dir(best_ckpt_dir)
+        test_dir = os.path.join(workdir, 'checkpoints', ckpt_name, 'test')
+        if os.path.join(os.path.join(test_dir, 'metrics.json')):
+            test_step_info = StepInfo.load_from_dir(test_dir)
+        else:
+            test_step_info = None
+
+        classes = meta_info['classes']
+        mark_info = {
+            'epoch': eval_step_info.epoch,
+            'task_type': 'classification',
+            'classes': classes,
+            **{
+                f'eval/{key}': value
+                for key, value in eval_step_info.metrics.items()
+                if not isinstance(value, Image.Image)
+            },
+            **{
+                f'test/{key}': value
+                for key, value in (test_step_info or {}).metrics.items()
+                if not isinstance(value, Image.Image)
+            },
+            **{
+                f'train/{key}': value
+                for key, value in meta_info['train'].items()
+            },
+            'copyright': 'DeepGHS (https://github.com/deepghs)',
+            'project': 'Anime Transformers',
+            'source': 'https://github.com/deepghs/anime_transformers',
+        }
+
         if not no_onnx_export:
             onnx_file = os.path.join(upload_dir, 'model.onnx')
             logging.info(f'Dumping to onnx file {onnx_file!r} ...')
@@ -88,7 +136,7 @@ def export(workdir: str, repo_id: Optional[str] = None,
                     model=model,
                     dummy_input=dummy_input_test,
                     onnx_filename=onnx_file,
-                    metadata={**meta, 'classes': meta_info['classes']},
+                    metadata=mark_info,
                     opset_version=onnx_opset_version,
                     verbose=False,
                 )
@@ -115,3 +163,59 @@ def export(workdir: str, repo_id: Optional[str] = None,
             dst_log_file = os.path.join(upload_dir, final_name)
             logging.info(f'Adding log file {logfile!r} to {dst_log_file!r} ...')
             shutil.copyfile(logfile, dst_log_file)
+
+        with open(os.path.join(upload_dir, 'README.md'), 'w') as f:
+            base_model_repo_id = meta_info['train'].get('model_name')
+            if base_model_repo_id:
+                if base_model_repo_id == repo_id:
+                    base_models = hf_client.repo_info(repo_id=repo_id, repo_type='model').card_data.get(
+                        'base_model') or []
+                    if base_models:
+                        base_model_repo_id = base_models[0]
+
+            print(f'---', file=f)
+            print(f'tags:', file=f)
+            print(f'- image-classification', file=f)
+            print(f'- transformers', file=f)
+            print(f'- animetrans', file=f)
+            print(f'- dghs-imgutils', file=f)
+            print(f'library_name: timm', file=f)
+            print(f'license: {license}', file=f)
+            print(f'datasets:', file=f)
+            print(f'- {dataset_repo_id}', file=f)
+            if base_model_repo_id:
+                print(f'base_model:', file=f)
+                print(f'- {base_model_repo_id}', file=f)
+            print(f'---', file=f)
+            print(f'', file=f)
+
+            title = title or f'Anime Classifier {repo_id}'
+            print(f'# {title}', file=f)
+            print(f'', file=f)
+            if description:
+                print(f'{description}', file=f)
+                print(f'', file=f)
+
+            s_flops, s_params, s_macs = clever_format([flops, params, macs], "%.1f")
+            print(f'## Model Details', file=f)
+            print(f'', file=f)
+            print(f'- **Model Type:** Image Classification', file=f)
+            print(f'- **Model Stats:**', file=f)
+            print(f'  - Params: {s_params}', file=f)
+            print(f'  - FLOPs / MACs: {s_flops} / {s_macs}', file=f)
+            print(f'  - Image size: train = {dummy_input_test.shape[-1]} x {dummy_input_test.shape[-2]}', file=f)
+            print(f'- **Dataset:** [{dataset_repo_id}]'
+                  f'({hf_hub_repo_url(repo_id=dataset_repo_id, repo_type="dataset", endpoint="https://huggingface.co")})',
+                  file=f)
+
+            print(f'  - Classes: {", ".join(map(lambda x: f"`{x}`", classes))}', file=f)
+            print(f'', file=f)
+
+        upload_directory_as_directory(
+            repo_id=repo_id,
+            repo_type='model',
+            local_directory=upload_dir,
+            path_in_repo='.',
+            message=f'Upload model {repo_id!r}',
+            clear=True,
+        )
