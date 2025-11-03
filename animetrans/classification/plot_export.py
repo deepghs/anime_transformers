@@ -22,7 +22,6 @@ def _to_numpy(x):
 
 def plt_export(func, *args, figsize=(6, 6), **kwargs) -> Image.Image:
     fig = plt.Figure(figsize=figsize)
-    fig.tight_layout()
     func(fig.gca(), *_to_numpy(args), **_to_numpy(kwargs))
 
     with TemporaryDirectory() as td:

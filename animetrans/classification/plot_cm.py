@@ -131,7 +131,7 @@ def plt_confusion_matrix(ax: Axes, y_true: Union[List, np.ndarray], y_pred: Unio
                         color=text_color, fontsize=10, fontweight='bold')
 
     # Add colorbar
-    cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    cbar = fig = ax.get_figure().colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     if normalize == 'true':
         cbar.set_label('True Positive Rate', rotation=270, labelpad=20, fontsize=11)
     elif normalize == 'pred':
