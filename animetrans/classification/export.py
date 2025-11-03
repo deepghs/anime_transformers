@@ -358,6 +358,17 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
 
             print(f'### Use Transformers And Torch', file=f)
             print(f'', file=f)
+            print(f'Install [dghs-imgutils](https://github.com/deepghs/imgutils), '
+                  f'[timm](https://github.com/huggingface/pytorch-image-models) '
+                  f'and other necessary requirements with the following command', file=f)
+            print(f'', file=f)
+            print(f'```shell', file=f)
+            print(f'pip install \'dghs-imgutils>={imgutils_version}\' torch huggingface_hub timm pillow pandas', file=f)
+            print(f'```', file=f)
+            print(f'', file=f)
+            print(f'After that you can load this model with timm library, and use it for train, validation and test, '
+                  f'with the following code', file=f)
+            print(f'', file=f)
             print(f'```python', file=f)
             print(f'import torch', file=f)
             print(f'from imgutils.data import load_image', file=f)
@@ -377,9 +388,9 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
             with torch.no_grad():
                 output = ep_model(input_)
             print(f"image = load_image({sample_input_url!r}, mode='RGB', force_background='white')", file=f)
-            print(f"input_ = processor(image)['pixel_values']")
+            print(f"input_ = processor(image)['pixel_values']", file=f)
             print(f'# input_, shape: {input_.shape!r}, dtype: {input_.dtype!r}', file=f)
-            print(f"classes = model.config.classes")
+            print(f"classes = model.config.classes", file=f)
             print(f'# {classes!r}', file=f)
             print(f'', file=f)
 
@@ -387,7 +398,7 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
             print(f'    output = model(input_)', file=f)
             print(f'# output, shape: {output.shape!r}, dtype: {output.dtype!r}', file=f)
             print(f'', file=f)
-            print(f"print(dict(zip(classes, output[0].tolist())))")
+            print(f"print(dict(zip(classes, output[0].tolist())))", file=f)
             print(f'{indent(pformat(dict(zip(classes, output[0].tolist())), sort_dicts=False), prefix="# ")}', file=f)
             print(f'```', file=f)
             print(f'', file=f)
