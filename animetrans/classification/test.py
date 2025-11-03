@@ -1,7 +1,9 @@
 import json
 import os
+from functools import partial
 from pprint import pformat
 
+import click
 import torch
 from PIL import Image
 from accelerate import Accelerator
@@ -16,6 +18,7 @@ from .plot_export import plt_export
 from .plot_pr import plt_multiclass_metrics, plt_f1_scores
 from ..dataset import load_pretrained_tag
 from ..model import ModelStep
+from ..utils import GLOBAL_CONTEXT_SETTINGS, print_version
 
 
 def test(workdir: str, num_workers: int = 32, batch_size: int = 32, force: bool = False, ckpt_name: str = 'best'):
@@ -188,8 +191,22 @@ def test(workdir: str, num_workers: int = 32, batch_size: int = 32, force: bool 
                 logging.info(f'Test metrics saved at {metrics_dir!r}')
 
 
-if __name__ == '__main__':
-    logging.try_init_root(level=logging.INFO)
+@click.command(context_settings={**GLOBAL_CONTEXT_SETTINGS}, help="Calculating test metrics for multilabel taggers.")
+@click.option('-v', '--version', is_flag=True,
+              callback=partial(print_version, 'animetimm.multilabel.test'), expose_value=False, is_eager=True)
+@click.option('--num-workers', '-nw', default=32, type=int, help='Number of workers', show_default=True)
+@click.option('--batch-size', '-bs', default=32, type=int, help='Batch size', show_default=True)
+@click.option('--workdir', '-w', default=None, type=str, help='Workdir to save training data', show_default=True)
+@click.option('--force/--non-force', default=True, help='Force re-calculate.', show_default=True)
+def cli(workdir, num_workers, batch_size, force):
+    logging.try_init_root(logging.INFO)
     test(
-        workdir='runs/hf-hub_animetimm_mobilenetv4_conv_aa_large.dbv4-full_ai-check-10k_bs32_mep50',
+        workdir=workdir,
+        num_workers=num_workers,
+        batch_size=batch_size,
+        force=force,
     )
+
+
+if __name__ == '__main__':
+    cli()
