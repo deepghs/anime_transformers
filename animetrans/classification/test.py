@@ -155,20 +155,20 @@ def test(workdir: str, num_workers: int = 32, batch_size: int = 32, force: bool 
                         plt_confusion_matrix,
                         y_true, y_pred,
                         labels=classes_info.classes,
-                        title=f'Confusion Matrix on Eval #{epoch}',
+                        title=f'Confusion Matrix on Test #{epoch}',
                         normalize='true',
                     ),
                     'plt_pr': plt_export(
                         plt_multiclass_metrics,
                         y_true, y_score,
                         labels=classes_info.classes,
-                        title=f'Precision-Recall Curves on Eval #{epoch}',
+                        title=f'Precision-Recall Curves on Test #{epoch}',
                     ),
                     'plt_f1': plt_export(
                         plt_f1_scores,
                         y_true, y_score,
                         labels=classes_info.classes,
-                        title=f'F1 Scores vs Threshold on Eval #{epoch}'
+                        title=f'F1 Scores vs Threshold on Test #{epoch}'
                     ),
                 }
                 logging.info(f'Test complete, result:\n{pformat(metrics)}')
