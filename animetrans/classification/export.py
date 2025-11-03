@@ -233,7 +233,7 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
 @click.option('--num-workers', '-nw', default=32, type=int, help='Number of workers', show_default=True)
 @click.option('--batch-size', '-bs', default=32, type=int, help='Batch size', show_default=True)
 @click.option('--workdir', '-w', default=None, type=str, help='Workdir to save training data', show_default=True)
-@click.option('--non-force/--force', default=False, help='Force re-calculate.', show_default=True)
+@click.option('--non-force/--force', 'force',default=False, help='Force re-calculate.', show_default=True)
 @click.option('--need-metrics/--no-metrics', default=True, help='Need metrics to get tested.', show_default=True)
 @click.option('--visibility', '-V', default='manual', type=click.Choice(['private', 'public', 'gated', 'manual']),
               help='Visibility when creating model repository (will be ignored when model repository already exist.',
