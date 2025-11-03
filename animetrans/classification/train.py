@@ -251,12 +251,18 @@ def train(
                 macro_f1 = f1_score(y_true, y_pred, average='macro', zero_division=0.0)
                 macro_precision = precision_score(y_true, y_pred, average='macro', zero_division=0.0)
                 macro_recall = recall_score(y_true, y_pred, average='macro', zero_division=0.0)
-                macro_auc = roc_auc_score(y_true, y_score, multi_class='ovr', average='macro')
+                if len(classes_info.classes) > 2:
+                    macro_auc = roc_auc_score(y_true, y_score, multi_class='ovr', average='macro')
+                else:
+                    macro_auc = roc_auc_score(y_true, y_score[:, 1], average='macro')
 
                 micro_f1 = f1_score(y_true, y_pred, average='micro', zero_division=0.0)
                 micro_precision = precision_score(y_true, y_pred, average='micro', zero_division=0.0)
                 micro_recall = recall_score(y_true, y_pred, average='micro', zero_division=0.0)
-                micro_auc = roc_auc_score(y_true, y_score, multi_class='ovr', average='micro')
+                if len(classes_info.classes) > 2:
+                    micro_auc = roc_auc_score(y_true, y_score, multi_class='ovr', average='micro')
+                else:
+                    micro_auc = roc_auc_score(y_true, y_score[:, 1], average='micro')
 
             session.tb_train_log(
                 global_step=epoch,
@@ -338,12 +344,18 @@ def train(
                     macro_f1 = f1_score(y_true, y_pred, average='macro', zero_division=0.0)
                     macro_precision = precision_score(y_true, y_pred, average='macro', zero_division=0.0)
                     macro_recall = recall_score(y_true, y_pred, average='macro', zero_division=0.0)
-                    macro_auc = roc_auc_score(y_true, y_score, multi_class='ovr', average='macro')
+                    if len(classes_info.classes) > 2:
+                        macro_auc = roc_auc_score(y_true, y_score, multi_class='ovr', average='macro')
+                    else:
+                        macro_auc = roc_auc_score(y_true, y_score[:, 1], average='macro')
 
                     micro_f1 = f1_score(y_true, y_pred, average='micro', zero_division=0.0)
                     micro_precision = precision_score(y_true, y_pred, average='micro', zero_division=0.0)
                     micro_recall = recall_score(y_true, y_pred, average='micro', zero_division=0.0)
-                    micro_auc = roc_auc_score(y_true, y_score, multi_class='ovr', average='micro')
+                    if len(classes_info.classes) > 2:
+                        micro_auc = roc_auc_score(y_true, y_score, multi_class='ovr', average='micro')
+                    else:
+                        micro_auc = roc_auc_score(y_true, y_score[:, 1], average='micro')
 
                     session.tb_eval_log(
                         global_step=epoch,
