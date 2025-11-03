@@ -13,9 +13,9 @@ from sklearn.metrics import precision_recall_curve, average_precision_score
 from sklearn.preprocessing import label_binarize
 
 
-def plot_multiclass_metrics(ax: matplotlib.axes.Axes, y_true: np.ndarray, y_scores: np.ndarray,
-                            labels: List[str], title: str = 'Multi-class P/R/F1 Curves',
-                            max_samples: int = 50000, n_thresholds: int = 100) -> matplotlib.axes.Axes:
+def plt_multiclass_metrics(ax: matplotlib.axes.Axes, y_true: np.ndarray, y_scores: np.ndarray,
+                           labels: List[str], title: str = 'Multi-class P/R/F1 Curves',
+                           max_samples: int = 50000, n_thresholds: int = 100) -> matplotlib.axes.Axes:
     """
     Plot multi-class Precision-Recall curves with micro and macro averages.
 
@@ -136,8 +136,8 @@ def plot_multiclass_metrics(ax: matplotlib.axes.Axes, y_true: np.ndarray, y_scor
     return ax
 
 
-def plot_f1_scores(ax: matplotlib.axes.Axes, y_true: np.ndarray, y_scores: np.ndarray,
-                   labels: List[str], title: str = 'F1 Scores by Threshold') -> matplotlib.axes.Axes:
+def plt_f1_scores(ax: matplotlib.axes.Axes, y_true: np.ndarray, y_scores: np.ndarray,
+                  labels: List[str], title: str = 'F1 Scores by Threshold') -> matplotlib.axes.Axes:
     """
     Plot F1 scores as a function of classification thresholds for threshold optimization.
 

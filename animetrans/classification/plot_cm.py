@@ -79,8 +79,6 @@ def plt_confusion_matrix(ax: Axes, y_true: Union[List, np.ndarray], y_pred: Unio
         y_true = y_true[indices]
         y_pred = y_pred[indices]
 
-    print(y_true.shape)
-
     # Calculate confusion matrix
     cm = confusion_matrix(y_true, y_pred, normalize=normalize)
     cm_counts = confusion_matrix(y_true, y_pred, normalize=None)  # Raw counts
@@ -124,7 +122,7 @@ def plt_confusion_matrix(ax: Axes, y_true: Union[List, np.ndarray], y_pred: Unio
                         text += f'\n({pct:.1f}%)'
                 else:
                     # Display normalized values
-                    text = f'{cm[i, j]:.2f}'
+                    text = f'{cm_counts[i, j]}'
                     if show_percentages:
                         pct = cm[i, j] * 100
                         text += f'\n({pct:.1f}%)'
