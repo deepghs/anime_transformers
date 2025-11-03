@@ -122,9 +122,9 @@ def train(
         logging.info(f'Training configurations: {train_cfg!r}.')
         with open(os.path.join(workdir, 'meta.json'), 'w') as f:
             json.dump({
-                'model_name': model.model_name,
+                'model_name': model.config.model_name,
                 'classes': classes_info.classes,
-                'model_args': model.model_args,
+                'model_args': model.config.model_args,
                 'pretrained_cfg': model.pretrained_cfg,
                 'train': train_cfg,
             }, f, indent=4, ensure_ascii=False, sort_keys=True)
