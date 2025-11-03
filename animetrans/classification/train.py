@@ -421,7 +421,7 @@ def train(
 @click.option('--dataset-repo-id', '-ds', required=True, help='Dataset repository to use. '
                                                               '-s option will be ignored when -ds is used.',
               show_default=True)
-@click.option('--max-epochs', '-mep', default=100, type=int, help='Maximum number of epochs', show_default=True)
+@click.option('--max-epochs', '-mep', default=50, type=int, help='Maximum number of epochs', show_default=True)
 @click.option('--model-name', '-m', default='caformer_s36.sail_in22k_ft_in1k_384', help='Model name', show_default=True)
 @click.option('--num-workers', '-nw', default=32, type=int, help='Number of workers', show_default=True)
 @click.option('--batch-size', '-bs', default=32, type=int, help='Batch size', show_default=True)
