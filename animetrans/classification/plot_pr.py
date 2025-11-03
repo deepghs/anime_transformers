@@ -3,7 +3,7 @@ This module provides functions for plotting multi-class classification metrics i
 Precision-Recall curves and F1 score curves. It is designed to visualize the performance 
 of multi-class classification models with efficient sampling for large datasets.
 """
-
+import logging
 from typing import List
 
 import matplotlib.axes
@@ -49,7 +49,7 @@ def plt_multiclass_metrics(ax: matplotlib.axes.Axes, y_true: np.ndarray, y_score
 
     # Perform random sampling if dataset is too large
     if len(y_true) > max_samples:
-        print(f"Large dataset detected ({len(y_true)} samples). Sampling {max_samples} for efficiency.")
+        logging.info(f"Large dataset detected ({len(y_true)} samples). Sampling {max_samples} for efficiency.")
         indices = np.random.choice(len(y_true), max_samples, replace=False)
         y_true = y_true[indices]
         y_scores = y_scores[indices]
