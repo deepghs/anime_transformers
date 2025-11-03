@@ -124,11 +124,14 @@ def load_dataloader(repo_id: str, preprocessor, class_key: str = 'class',
                     batch_size: int = 64, num_workers: int = 32, is_main_process: bool = True, image_key: str = 'webp',
                     row_level_preprocess: Optional[Callable[[Image.Image, dict], Tuple[Image.Image, dict]]] = None):
     from .augmentation import create_augmentation
-    trans = create_augmentation(**dict(aug_args or {}))
-    trans = T.Compose([
-        *trans.transforms,
-        TransformersTrans(preprocessor),
-    ])
+    if split == 'train':
+        trans = create_augmentation(**dict(aug_args or {}))
+        trans = T.Compose([
+            *trans.transforms,
+            TransformersTrans(preprocessor),
+        ])
+    else:
+        trans = TransformersTrans(preprocessor)
     if is_main_process:
         logging.info(f'Transforms loaded (for {split}):\n{trans}')
 

@@ -1,5 +1,5 @@
 import os
-from typing import Optional, Mapping, Union, Dict, Any
+from typing import Optional, Mapping, Union, Dict
 
 from PIL import Image
 from ditk import logging
@@ -9,11 +9,9 @@ from ..model import ModelStep, TimmModel
 
 
 class CheckpointLogger(BaseLogger):
-    def __init__(self, workdir: str, key_metric: str = 'accuracy',
-                 extra_metadata: Optional[Dict[str, Any]] = None, save_step_when_better: bool = False, **kwargs):
+    def __init__(self, workdir: str, key_metric: str = 'accuracy', save_step_when_better: bool = False, **kwargs):
         BaseLogger.__init__(self, workdir, **kwargs)
         self.key_metric = key_metric
-        self.extra_metadata = dict(extra_metadata or {})
 
         self.ckpt_dir = os.path.join(self.workdir, 'checkpoints')
         self._last_step: Optional[int] = None

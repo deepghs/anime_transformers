@@ -46,6 +46,7 @@ class TimmModelConfig(PretrainedConfig):
             task_type: str = 'classification',
             task_config: Optional[dict] = None,
             model_args: Optional[dict] = None,
+            use_infer_head: bool = False,
             **kwargs
     ):
         super().__init__(**kwargs)
@@ -53,6 +54,7 @@ class TimmModelConfig(PretrainedConfig):
         self.task_type = task_type
         self.task_config = dict(task_config or {})
         self.model_args = dict(model_args or {})
+        self.use_infer_head = use_infer_head
 
     @property
     def num_classes(self) -> int:
@@ -365,6 +367,7 @@ class TimmModel(PreTrainedModel):
             model.reset_classifier(num_outputs)
 
         self.model = model
+        self.head = nn.Identity() if not self.config.use_infer_head else self.config.create_infer_head()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -375,7 +378,9 @@ class TimmModel(PreTrainedModel):
         :return: Model output logits.
         :rtype: torch.Tensor
         """
-        return self.model(x)
+        x = self.model(x)
+        x = self.head(x)
+        return x
 
 
 TimmModel.register_for_auto_class()
