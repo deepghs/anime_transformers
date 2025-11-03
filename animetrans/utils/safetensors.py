@@ -8,6 +8,7 @@ SafeTensors files while preserving the original tensor data.
 import json
 from typing import Dict, Any
 
+from natsort import natsorted
 from safetensors import safe_open
 from safetensors.torch import save_file
 
@@ -48,7 +49,7 @@ def add_metadata_to_safetensors(input_path: str, output_path: str, new_metadata:
         original_metadata = f.metadata() or {}
 
         # Read all tensors
-        for key in f.keys():
+        for key in natsorted(f.keys()):
             tensors[key] = f.get_tensor(key)
 
     # Merge metadata (new metadata will overwrite existing metadata with same keys)
