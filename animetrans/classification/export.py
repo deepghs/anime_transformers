@@ -346,6 +346,7 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
             dataset = load_dataset(dataset_repo_id, split='test', image_key=image_key, class_key=class_key)
 
             imgutils_version = str(vpip('dghs-imgutils')._actual_version)
+            transformers_version = str(vpip('transformers')._actual_version)
             sample_input = dataset[0][image_key]
             sample_input_file = os.path.join(upload_dir, 'sample.webp')
             sample_input_relfile = hf_normpath(os.path.relpath(sample_input_file, upload_dir))
@@ -364,7 +365,8 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
                   f'and other necessary requirements with the following command', file=f)
             print(f'', file=f)
             print(f'```shell', file=f)
-            print(f'pip install \'dghs-imgutils>={imgutils_version}\' torch huggingface_hub timm pillow pandas', file=f)
+            print(f'pip install \'dghs-imgutils>={imgutils_version}\' torch huggingface_hub timm pillow '
+                  f'\'transformers>={transformers_version}\'', file=f)
             print(f'```', file=f)
             print(f'', file=f)
             print(f'After that you can load this model with timm library, and use it for train, validation and test, '
