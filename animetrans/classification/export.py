@@ -15,6 +15,7 @@ from ditk import logging
 from hbutils.encoding import sha3
 from hfutils.operate import get_hf_client, upload_directory_as_directory
 from hfutils.repository import hf_hub_repo_url
+from huggingface_hub import hf_hub_url
 from thop import clever_format
 from timm.models import parse_model_name
 from transformers import AutoModel, AutoImageProcessor
@@ -256,8 +257,8 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
             if test_step_info:
                 s_records.append({
                     '#': 'Test',
-                    'Acc / Top-{num_topk}': f"{test_step_info.metrics['accuracy'] * 100.0:.2f}% / "
-                                            f"{test_step_info.metrics[f'top-{num_topk}'] * 100.0:.2f}%",
+                    f'Acc / Top-{num_topk}': f"{test_step_info.metrics['accuracy'] * 100.0:.2f}% / "
+                                             f"{test_step_info.metrics[f'top-{num_topk}'] * 100.0:.2f}%",
                     'Macro (F1/P/R/AUC)': '%.3f / %.3f / %.3f / %.3f' % (
                         test_step_info.metrics['macro_f1'],
                         test_step_info.metrics['macro_precision'],
@@ -270,6 +271,71 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
                         test_step_info.metrics['micro_recall'],
                         test_step_info.metrics['micro_auc'],
                     )
+                })
+            df_s = pd.DataFrame(s_records)
+            print(df_s.to_markdown(index=False, stralign='center', numalign='center'), file=f)
+            print(f'', file=f)
+
+            print(f'### Plots', file=f)
+            print(f'', file=f)
+            for key, value in eval_step_info.metrics.items():
+                if isinstance(value, Image.Image):
+                    value.save(os.path.join(upload_dir, f'eval_{key}.png'))
+            with open(os.path.join(upload_dir, 'eval_metrics.json'), 'w') as f:
+                json.dump({
+                    'epoch': eval_step_info.epoch,
+                    **{
+                        key: value for key, value in eval_step_info.metrics.items()
+                        if not isinstance(value, Image.Image)
+                    },
+                }, f, ensure_ascii=False, sort_keys=True, indent=4)
+            s_records = [{
+                '#': 'Validation',
+                f'Confusion': hf_hub_url(
+                    repo_id=repo_id,
+                    repo_type='model',
+                    filename='eval_plt_confusion.png',
+                ),
+                'P/R': hf_hub_url(
+                    repo_id=repo_id,
+                    repo_type='model',
+                    filename='eval_plt_pr.png',
+                ),
+                'F1': hf_hub_url(
+                    repo_id=repo_id,
+                    repo_type='model',
+                    filename='eval_plt_f1.png',
+                ),
+            }]
+            if test_step_info:
+                for key, value in test_step_info.metrics.items():
+                    if isinstance(value, Image.Image):
+                        value.save(os.path.join(upload_dir, f'test_{key}.png'))
+                with open(os.path.join(upload_dir, 'test_metrics.json'), 'w') as f:
+                    json.dump({
+                        'epoch': test_step_info.epoch,
+                        **{
+                            key: value for key, value in test_step_info.metrics.items()
+                            if not isinstance(value, Image.Image)
+                        },
+                    }, f, ensure_ascii=False, sort_keys=True, indent=4)
+                s_records.append({
+                    '#': 'Test',
+                    f'Confusion': hf_hub_url(
+                        repo_id=repo_id,
+                        repo_type='model',
+                        filename='test_plt_confusion.png',
+                    ),
+                    'P/R': hf_hub_url(
+                        repo_id=repo_id,
+                        repo_type='model',
+                        filename='test_plt_pr.png',
+                    ),
+                    'F1': hf_hub_url(
+                        repo_id=repo_id,
+                        repo_type='model',
+                        filename='test_plt_f1.png',
+                    ),
                 })
             df_s = pd.DataFrame(s_records)
             print(df_s.to_markdown(index=False, stralign='center', numalign='center'), file=f)
