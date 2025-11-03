@@ -38,7 +38,7 @@ def train(
         num_workers: int = 32,
         max_epochs: int = 50,
         batch_size: int = 32,
-        learning_rate: float = 4e-5,
+        learning_rate: float = 1e-4,
         weight_decay: float = 1e-3,
         key_metric: str = 'macro_f1',
         seed: Optional[int] = 0,
@@ -425,7 +425,7 @@ def train(
 @click.option('--model-name', '-m', default='caformer_s36.sail_in22k_ft_in1k_384', help='Model name', show_default=True)
 @click.option('--num-workers', '-nw', default=32, type=int, help='Number of workers', show_default=True)
 @click.option('--batch-size', '-bs', default=32, type=int, help='Batch size', show_default=True)
-@click.option('--learning-rate', '-lr', default=4e-5, type=float, help='Learning rate', show_default=True)
+@click.option('--learning-rate', '-lr', default=1e-4, type=float, help='Learning rate', show_default=True)
 @click.option('--weight-decay', '-wd', default=1e-3, type=float, help='Weight decay', show_default=True)
 @click.option('--key-metric', '-km', default='macro_f1', help='Key metric for evaluation', show_default=True)
 @click.option('--seed', type=int, default=0, help='Random seed', show_default=True)
