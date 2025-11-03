@@ -60,7 +60,8 @@ def test(workdir: str, num_workers: int = 32, batch_size: int = 32, force: bool 
 
     model = AutoModel.from_pretrained(model_ckpt_dir, trust_remote_code=True)
     if accelerator.is_main_process:
-        logging.info(f'Model loaded:\n{model!r}')
+        # logging.info(f'Model loaded:\n{model!r}')
+        logging.info(f'Model loaded.')
 
     preprocessor_dir = os.path.join(workdir, 'preprocessor')
     preprocessor = AutoImageProcessor.from_pretrained(preprocessor_dir, trust_remote_code=True)

@@ -65,7 +65,8 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
         best_ckpt_dir = os.path.join(checkpoints, ckpt_name)
         logging.info(f'Loading model from {best_ckpt_dir!r} ...')
         model = AutoModel.from_pretrained(best_ckpt_dir, trust_remote_code=True, use_infer_head=True)
-        logging.info(f'Model loaded:\n{model!r}')
+        # logging.info(f'Model loaded:\n{model!r}')
+        logging.info(f'Model loaded.')
 
         preprocessor_dir = os.path.join(workdir, 'preprocessor')
         preprocessor = AutoImageProcessor.from_pretrained(preprocessor_dir, trust_remote_code=True)
