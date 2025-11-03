@@ -3,9 +3,11 @@ import json
 import os
 import re
 import shutil
+from functools import partial
 from tempfile import TemporaryDirectory
 from typing import Optional, Literal, List
 
+import click
 from PIL import Image
 from ditk import logging
 from hbutils.encoding import sha3
@@ -15,10 +17,12 @@ from thop import clever_format
 from timm.models import parse_model_name
 from transformers import AutoModel, AutoImageProcessor
 
+from .test import test
 from ..dataset import load_pretrained_tag
 from ..model import StepInfo
 from ..onnx import export_model_to_onnx, ExportedONNXNotUniqueError
-from ..utils import torch_model_profile_via_calflops, is_tensorboard_has_content
+from ..utils import torch_model_profile_via_calflops, is_tensorboard_has_content, GLOBAL_CONTEXT_SETTINGS, \
+    print_version, VALID_LICENCES
 
 _LOG_FILE_PATTERN = re.compile(r'^events\.out\.tfevents\.(?P<timestamp>\d+)\.(?P<machine>[^.]+)\.(?P<extra>[\s\S]+)$')
 
@@ -219,3 +223,51 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
             message=f'Upload model {repo_id!r}',
             clear=True,
         )
+
+
+@click.command(context_settings={**GLOBAL_CONTEXT_SETTINGS}, help="Calculating test metrics for multilabel taggers.")
+@click.option('-v', '--version', is_flag=True,
+              callback=partial(print_version, 'animetrans.classification.export'), expose_value=False, is_eager=True)
+@click.option('--num-workers', '-nw', default=32, type=int, help='Number of workers', show_default=True)
+@click.option('--batch-size', '-bs', default=32, type=int, help='Batch size', show_default=True)
+@click.option('--workdir', '-w', default=None, type=str, help='Workdir to save training data', show_default=True)
+@click.option('--force/--non-force', default=True, help='Force re-calculate test metrics.', show_default=True)
+@click.option('--need-metrics/--no-metrics', default=True, help='Need metrics to get tested.', show_default=True)
+@click.option('--visibility', '-V', default='manual', type=click.Choice(['private', 'public', 'gated', 'manual']),
+              help='Visibility when creating model repository (will be ignored when model repository already exist.',
+              show_default=True)
+@click.option('--repository', '-r', default=None, help='Repository for uploading model', show_default=True)
+@click.option('--tag', '-t', 'tags', multiple=True, type=str, help='Append tags for repository name', show_default=True)
+@click.option('--title', '-T', default=None, type=str, help='Title for repository', show_default=True)
+@click.option('--description', '-desc', default=None, type=str, help='Description for repository', show_default=True)
+@click.option('-l', '--licence', '--license', 'license', type=click.Choice(VALID_LICENCES), default='mit',
+              help='Licence for repository.', show_default=True)
+@click.option('--ckpt-name', '-c', 'ckpt_name', default='best', help='Name of the checkpoint to test',
+              show_default=True)
+def cli(workdir, num_workers, batch_size, force, need_metrics, repository, visibility, tags, title, description,
+        license, ckpt_name):
+    logging.try_init_root(logging.INFO)
+    if need_metrics:
+        test(
+            workdir=workdir,
+            num_workers=num_workers,
+            batch_size=batch_size,
+            force=force,
+            ckpt_name=ckpt_name,
+        )
+
+    export(
+        workdir=workdir,
+        repo_id=repository,
+        visibility=visibility,
+        logfile_anonymous=True,
+        append_tags=tags,
+        title=title,
+        description=description,
+        license=license,
+        ckpt_name=ckpt_name,
+    )
+
+
+if __name__ == '__main__':
+    cli()
