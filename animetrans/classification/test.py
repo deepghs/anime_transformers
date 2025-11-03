@@ -190,5 +190,5 @@ def test(workdir: str, num_workers: int = 32, batch_size: int = 32, force: bool 
 if __name__ == '__main__':
     logging.try_init_root(level=logging.INFO)
     test(
-        workdir='hf-hub_animetimm_mobilenetv4_conv_aa_large.dbv4-full_ai-check-10k_bs32_mep50',
+        workdir='runs/hf-hub_animetimm_mobilenetv4_conv_aa_large.dbv4-full_ai-check-10k_bs32_mep50',
     )
