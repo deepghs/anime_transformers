@@ -82,7 +82,7 @@ class ImageCompression:
     to compression artifacts commonly found in web images and mobile photography.
     """
 
-    def __init__(self, p: float = 0.3, quality_range: Tuple[int, int] = (70, 95),
+    def __init__(self, p: float = 0.35, quality_range: Tuple[int, int] = (70, 95),
                  formats: Optional[List[str]] = None):
         """
         Initialize the ImageCompression transform.
@@ -152,7 +152,7 @@ class WeakRandAugment2(T.RandAugment):
 
     def __init__(
             self,
-            num_ops: int = 2,
+            num_ops: int = 4,
             magnitude: int = 9,
             num_magnitude_bins: int = 31,
             interpolation: T.InterpolationMode = T.InterpolationMode.NEAREST,
@@ -344,10 +344,12 @@ class WeakRandAugment2(T.RandAugment):
 
 def create_augmentation(
         prob_grayscale: float = 0.0,
-        prob_compress: float = 0.2,
+        prob_compress: float = 0.35,
         compress_quality_range: Tuple[int, int] = (50, 95),
         compress_formats: Optional[List[str]] = None,
-        num_ops: int = 2,
+        prob_lr_flip: float = 0.5,
+        prob_ud_flip: float = 0.0,
+        num_ops: int = 4,
         magnitude: int = 9,
         num_magnitude_bins: int = 31,
         interpolation: T.InterpolationMode = T.InterpolationMode.NEAREST,
@@ -424,6 +426,10 @@ def create_augmentation(
             quality_range=compress_quality_range,
             formats=compress_formats,
         ))
+    if prob_lr_flip > 0:
+        trans.append(T.RandomHorizontalFlip(p=prob_lr_flip))
+    if prob_ud_flip > 0:
+        trans.append(T.RandomVerticalFlip(p=prob_ud_flip))
     trans.append(WeakRandAugment2(
         num_ops=num_ops,
         magnitude=magnitude,
@@ -447,9 +453,9 @@ def create_augmentation(
 if __name__ == '__main__':
     # aug = WeakRandAugment2(include=["ShearX", "ShearY"])
     aug = create_augmentation(
-        prob_grayscale=0.5,
-        prob_compress=0.5,
-        include=['ShearX', 'ShearY'],
+        # prob_grayscale=0.5,
+        # prob_compress=0.5,
+        # include=['ShearX', 'ShearY'],
     )
     print(aug)
     image = load_image('test_image.jpg', mode='RGB', force_background='white')
