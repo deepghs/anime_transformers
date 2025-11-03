@@ -1,25 +1,34 @@
+import datetime
 import glob
 import json
 import os
 import re
 import shutil
 from functools import partial
+from pprint import pformat
 from tempfile import TemporaryDirectory
+from textwrap import indent
 from typing import Optional, Literal, List
 
 import click
 import pandas as pd
+import torch
 from PIL import Image
 from accelerate import Accelerator
 from ditk import logging
 from hbutils.encoding import sha3
+from hbutils.string import plural_word
+from hbutils.testing import vpip
 from hfutils.operate import get_hf_client, upload_directory_as_directory
 from hfutils.repository import hf_hub_repo_url, hf_hub_repo_file_url
+from hfutils.utils import hf_normpath
 from huggingface_hub import hf_hub_url
+from imgutils.data import load_image
 from thop import clever_format
 from timm.models import parse_model_name
 from transformers import AutoModel, AutoImageProcessor
 
+from animetrans.classification.dataset import load_dataset
 from .test import test
 from ..dataset import load_pretrained_tag
 from ..model import StepInfo
@@ -28,6 +37,10 @@ from ..utils import torch_model_profile_via_calflops, is_tensorboard_has_content
     print_version, VALID_LICENCES, add_metadata_to_safetensors
 
 _LOG_FILE_PATTERN = re.compile(r'^events\.out\.tfevents\.(?P<timestamp>\d+)\.(?P<machine>[^.]+)\.(?P<extra>[\s\S]+)$')
+
+
+def _name_safe(name_text):
+    return re.sub(r'[\W_]+', '_', name_text).strip('_')
 
 
 def _get_timm_repo_id(timm_model_name: str):
@@ -58,6 +71,7 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
         with open(meta_info_file, 'r') as f:
             meta_info = json.load(f)
 
+        image_key, class_key = meta_info['train']['image_key'], meta_info['train']['class_key']
         task_type = meta_info.get('task_type', 'classification')
         if task_type != 'classification':
             raise RuntimeError(f'Workdir {workdir!r} is not a classification task, but {task_type!r} instead.')
@@ -324,6 +338,80 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
 
             with open(os.path.join(upload_dir, 'metrics.json'), 'w') as mf:
                 json.dump(metrics_info, mf, ensure_ascii=False, sort_keys=True, indent=4)
+
+            print(f'## How to Use', file=f)
+            print(f'', file=f)
+
+            dataset = load_dataset(dataset_repo_id, split='test', image_key=image_key, class_key=class_key)
+
+            imgutils_version = str(vpip('dghs-imgutils')._actual_version)
+            sample_input = dataset[0][image_key]
+            sample_input_file = os.path.join(upload_dir, 'sample.webp')
+            sample_input_relfile = hf_normpath(os.path.relpath(sample_input_file, upload_dir))
+            sample_input.save(sample_input_file)
+            sample_input_url = hf_hub_url(repo_id=repo_id, repo_type='model', filename=sample_input_relfile)
+            sample_input_page_url = hf_hub_repo_file_url(repo_id=repo_id, repo_type='model', path=sample_input_relfile)
+
+            print(f'We provided a sample image for our code samples, '
+                  f'you can find it [here]({sample_input_page_url}).', file=f)
+            print(f'', file=f)
+
+            print(f'### Use Transformers And Torch', file=f)
+            print(f'', file=f)
+            print(f'```python', file=f)
+            print(f'import torch', file=f)
+            print(f'from imgutils.data import load_image', file=f)
+            print(f'from transformers import AutoImageProcessor, AutoModel', file=f)
+            print(f'', file=f)
+            print(f"processor = AutoImageProcessor.from_pretrained({repo_id!r}, trust_remote_code=True)", file=f)
+            print(f"model = AutoModel.from_pretrained({repo_id!r}, trust_remote_code=True, use_infer_head=True)",
+                  file=f)
+            print(f'model.eval()', file=f)
+            print(f'', file=f)
+
+            ep_processor = AutoImageProcessor.from_pretrained(upload_dir, trust_remote_code=True)
+            ep_model = AutoModel.from_pretrained(upload_dir, trust_remote_code=True, use_infer_head=True)
+            ep_model.eval()
+            input_image = load_image(sample_input_file, mode='RGB', force_background='white')
+            input_ = ep_processor(input_image)['pixel_values']
+            with torch.no_grad():
+                output = ep_model(input_)
+            print(f"image = load_image({sample_input_url!r}, mode='RGB', force_background='white')", file=f)
+            print(f"input_ = processor(image)['pixel_values']")
+            print(f'# input_, shape: {input_.shape!r}, dtype: {input_.dtype!r}', file=f)
+            print(f"classes = model.config.classes")
+            print(f'# {classes!r}', file=f)
+            print(f'', file=f)
+
+            print(f'with torch.no_grad():', file=f)
+            print(f'    output = model(input_)', file=f)
+            print(f'# output, shape: {output.shape!r}, dtype: {output.dtype!r}', file=f)
+            print(f'', file=f)
+            print(f"print(dict(zip(classes, output[0].tolist())))")
+            print(f'{indent(pformat(dict(zip(classes, output[0].tolist())), sort_dicts=False), prefix="# ")}', file=f)
+            print(f'```', file=f)
+            print(f'', file=f)
+
+            print(f'## Citation', file=f)
+            print(f'', file=f)
+            print(f'```', file=f)
+            print(f'@misc{{{_name_safe(repo_id.split("/")[-1])},', file=f)
+            print(f'  title        = {{{title}}},', file=f)
+            print(f'  author       = {{narugo1992 and Deep Generative anime Hobbyist Syndicate (DeepGHS)}},', file=f)
+            print(f'  year         = {{{datetime.datetime.now().year}}},', file=f)
+            print(f'  howpublished = {{\\url{{{hf_hub_repo_url(repo_id=repo_id, repo_type="model")}}}}},',
+                  file=f)
+            print(f'  note         = {{A anime-style image classification model '
+                  f'for classification task with {plural_word(len(classes), "class")} ({", ".join(classes)}), '
+                  f'trained on anime dataset {pretrained_tag} '
+                  f'(\\url{{{hf_hub_repo_url(repo_id=dataset_repo_id, repo_type="dataset")}}}). '
+                  f'Model parameters: {s_params}, FLOPs: {s_flops}, '
+                  f'input resolution: {dummy_input_test.shape[-1]}×{dummy_input_test.shape[-2]}.}},',
+                  file=f)
+            print(f'  license      = {{{license}}}', file=f)
+            print(f'}}', file=f)
+            print(f'```', file=f)
+            print(f'', file=f)
 
         upload_directory_as_directory(
             repo_id=repo_id,
