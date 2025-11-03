@@ -5,14 +5,14 @@ SafeTensors is a format for storing tensors safely and efficiently. This module
 specifically focuses on adding or updating metadata information in existing
 SafeTensors files while preserving the original tensor data.
 """
-
-from typing import Dict
+import json
+from typing import Dict, Any
 
 from safetensors import safe_open
 from safetensors.torch import save_file
 
 
-def add_metadata_to_safetensors(input_path: str, output_path: str, new_metadata: Dict[str, str]) -> None:
+def add_metadata_to_safetensors(input_path: str, output_path: str, new_metadata: Dict[str, Any]) -> None:
     """
     Read a SafeTensors file, add new metadata information, and save to a new file.
 
@@ -26,7 +26,7 @@ def add_metadata_to_safetensors(input_path: str, output_path: str, new_metadata:
     :type output_path: str
     :param new_metadata: Dictionary containing new metadata key-value pairs to add.
                         If keys already exist in the original metadata, they will be overwritten.
-    :type new_metadata: Dict[str, str]
+    :type new_metadata: Dict[str, Any]
     :return: None
     :rtype: None
     :raises FileNotFoundError: If the input file does not exist.
@@ -52,7 +52,10 @@ def add_metadata_to_safetensors(input_path: str, output_path: str, new_metadata:
             tensors[key] = f.get_tensor(key)
 
     # Merge metadata (new metadata will overwrite existing metadata with same keys)
-    merged_metadata = {**original_metadata, **new_metadata}
+    merged_metadata = {
+        **original_metadata,
+        **{key: json.dumps(value) for key, value in new_metadata.items()},
+    }
 
     # Save to new file
     save_file(tensors, output_path, metadata=merged_metadata)
