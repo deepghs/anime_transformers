@@ -367,7 +367,7 @@ def train(
 
                     session.tb_eval_log(
                         global_step=epoch,
-                        model=model,
+                        model=accelerator.unwrap_model(model),
                         metrics={
                             'loss': eval_loss / eval_total,
                             'accuracy': top_k_accuracy_score(
