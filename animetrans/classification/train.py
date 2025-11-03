@@ -125,7 +125,6 @@ def train(
                 'model_name': model.config.model_name,
                 'classes': classes_info.classes,
                 'model_args': model.config.model_args,
-                'pretrained_cfg': model.pretrained_cfg,
                 'train': train_cfg,
             }, f, indent=4, ensure_ascii=False, sort_keys=True)
 
