@@ -1,6 +1,7 @@
 import torch
 from ditk import logging
 from thop import profile, clever_format
+from torch import nn
 
 
 def torch_model_profile_via_thop(model, input_):
@@ -13,10 +14,19 @@ def torch_model_profile_via_thop(model, input_):
     return flops, params
 
 
+class WrapModule(nn.Module):
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    def forward(self, x):
+        return self.model(x)
+
+
 def torch_model_profile_via_calflops(model, input_):
     from calflops import calculate_flops
     flops, macs, params = calculate_flops(
-        model=model,
+        model=WrapModule(model),
         input_shape=tuple(input_.shape),
         output_as_string=False,
         print_detailed=False,
