@@ -269,11 +269,13 @@ def train(
                 metrics={
                     'loss': train_loss / train_total,
                     'accuracy': top_k_accuracy_score(
-                        y_true, y_score,
+                        y_true,
+                        y_score if len(classes_info.classes) > 2 else y_score[:, 1],
                         labels=list(range(len(classes_info.classes))), k=1
                     ),
                     f'top-{num_topk}': top_k_accuracy_score(
-                        y_true, y_score,
+                        y_true,
+                        y_score if len(classes_info.classes) > 2 else y_score[:, 1],
                         labels=list(range(len(classes_info.classes))), k=num_topk
                     ),
                     'macro_f1': macro_f1,
@@ -369,11 +371,13 @@ def train(
                         metrics={
                             'loss': eval_loss / eval_total,
                             'accuracy': top_k_accuracy_score(
-                                y_true, y_score,
+                                y_true,
+                                y_score if len(classes_info.classes) > 2 else y_score[:, 1],
                                 labels=list(range(len(classes_info.classes))), k=1
                             ),
                             f'top-{num_topk}': top_k_accuracy_score(
-                                y_true, y_score,
+                                y_true,
+                                y_score if len(classes_info.classes) > 2 else y_score[:, 1],
                                 labels=list(range(len(classes_info.classes))), k=num_topk
                             ),
                             'macro_f1': macro_f1,
