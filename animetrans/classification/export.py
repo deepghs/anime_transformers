@@ -62,9 +62,10 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
             raise RuntimeError(f'Workdir {workdir!r} is not a classification task, but {task_type!r} instead.')
         meta_info['task_type'] = 'classification'
 
+        classes = meta_info['classes']
         num_topk = meta_info['train'].get('num_topk')
         if num_topk is None:
-            num_topk = max(min(len(classes_info.classes) // 2, 5), 1)
+            num_topk = max(min(len(classes) // 2, 5), 1)
 
         dataset_repo_id = meta_info['train']['dataset']
         checkpoints = os.path.join(workdir, 'checkpoints')
@@ -116,7 +117,6 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
         else:
             test_step_info = None
 
-        classes = meta_info['classes']
         mark_info = {
             'epoch': eval_step_info.epoch,
             'task_type': 'classification',
