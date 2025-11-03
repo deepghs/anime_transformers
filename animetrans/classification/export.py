@@ -238,8 +238,8 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
             print(f'', file=f)
             s_records = [{
                 '#': 'Validation',
-                'Acc': f"{eval_step_info.metrics['accuracy'] * 100.0:.2f}%",
-                f'Top-{num_topk}': f"{eval_step_info.metrics[f'top-{num_topk}'] * 100.0:.2f}%",
+                f'Acc / Top-{num_topk}': f"{eval_step_info.metrics['accuracy'] * 100.0:.2f}% / "
+                                         f"{eval_step_info.metrics[f'top-{num_topk}'] * 100.0:.2f}%",
                 'Macro (F1/P/R/AUC)': '%.3f / %.3f / %.3f / %.3f' % (
                     eval_step_info.metrics['macro_f1'],
                     eval_step_info.metrics['macro_precision'],
@@ -256,17 +256,19 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
             if test_step_info:
                 s_records.append({
                     '#': 'Test',
-                    'Acc': f"{test_step_info.metrics['accuracy'] * 100.0:.2f}%",
-                    f'Top-{num_topk}': f"{test_step_info.metrics[f'top-{num_topk}'] * 100.0:.2f}%",
-                    'Macro (F1/P/R)': '%.3f / %.3f / %.3f' % (
+                    'Acc / Top-{num_topk}': f"{test_step_info.metrics['accuracy'] * 100.0:.2f}% / "
+                                            f"{test_step_info.metrics[f'top-{num_topk}'] * 100.0:.2f}%",
+                    'Macro (F1/P/R/AUC)': '%.3f / %.3f / %.3f / %.3f' % (
                         test_step_info.metrics['macro_f1'],
                         test_step_info.metrics['macro_precision'],
                         test_step_info.metrics['macro_recall'],
+                        test_step_info.metrics['macro_auc'],
                     ),
-                    'Micro (F1/P/R)': '%.3f / %.3f / %.3f' % (
+                    'Micro (F1/P/R/AUC)': '%.3f / %.3f / %.3f / %.3f' % (
                         test_step_info.metrics['micro_f1'],
                         test_step_info.metrics['micro_precision'],
                         test_step_info.metrics['micro_recall'],
+                        test_step_info.metrics['micro_auc'],
                     )
                 })
             df_s = pd.DataFrame(s_records)
