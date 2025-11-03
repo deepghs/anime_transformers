@@ -268,8 +268,14 @@ def train(
                 global_step=epoch,
                 metrics={
                     'loss': train_loss / train_total,
-                    'accuracy': top_k_accuracy_score(y_true, y_score, k=1),
-                    f'top-{num_topk}': top_k_accuracy_score(y_true, y_score, k=num_topk),
+                    'accuracy': top_k_accuracy_score(
+                        y_true, y_score,
+                        labels=list(range(len(classes_info.classes))), k=1
+                    ),
+                    f'top-{num_topk}': top_k_accuracy_score(
+                        y_true, y_score,
+                        labels=list(range(len(classes_info.classes))), k=num_topk
+                    ),
                     'macro_f1': macro_f1,
                     'macro_precision': macro_precision,
                     'macro_recall': macro_recall,
@@ -362,8 +368,14 @@ def train(
                         model=model,
                         metrics={
                             'loss': eval_loss / eval_total,
-                            'accuracy': top_k_accuracy_score(y_true, y_score, k=1),
-                            f'top-{num_topk}': top_k_accuracy_score(y_true, y_score, k=num_topk),
+                            'accuracy': top_k_accuracy_score(
+                                y_true, y_score,
+                                labels=list(range(len(classes_info.classes))), k=1
+                            ),
+                            f'top-{num_topk}': top_k_accuracy_score(
+                                y_true, y_score,
+                                labels=list(range(len(classes_info.classes))), k=num_topk
+                            ),
                             'macro_f1': macro_f1,
                             'macro_precision': macro_precision,
                             'macro_recall': macro_recall,
