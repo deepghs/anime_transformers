@@ -9,6 +9,7 @@ from typing import Optional, Literal, List
 
 import click
 from PIL import Image
+from accelerate import Accelerator
 from ditk import logging
 from hbutils.encoding import sha3
 from hfutils.operate import get_hf_client, upload_directory_as_directory
@@ -242,11 +243,22 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
 @click.option('--description', '-desc', default=None, type=str, help='Description for repository', show_default=True)
 @click.option('-l', '--licence', '--license', 'license', type=click.Choice(VALID_LICENCES), default='mit',
               help='Licence for repository.', show_default=True)
+@click.option('-opv', '--onnx-opset-version', 'onnx_opset_version', default=14, type=int,
+              help='OpSet Version of ONNX Export.', show_default=True)
+@click.option('--no-onnx-export', 'no_onnx_export', is_flag=True, default=False, type=bool,
+              help='No ONNX model to export, just save the weights.', show_default=True)
+@click.option('-ns', '--namespace', 'namespace', default='animetimm', type=str, show_default=True,
+              help='Namespace for the publish repository')
 @click.option('--ckpt-name', '-c', 'ckpt_name', default='best', help='Name of the checkpoint to test',
               show_default=True)
 def cli(workdir, num_workers, batch_size, force, need_metrics, repository, visibility, tags, title, description,
-        license, ckpt_name):
+        license, ckpt_name, onnx_opset_version, no_onnx_export, namespace):
     logging.try_init_root(logging.INFO)
+    accelerator = Accelerator(
+        # mixed_precision=self.cfgs.mixed_precision,
+        step_scheduler_with_optimizer=False,
+    )
+
     if need_metrics:
         test(
             workdir=workdir,
@@ -254,19 +266,24 @@ def cli(workdir, num_workers, batch_size, force, need_metrics, repository, visib
             batch_size=batch_size,
             force=force,
             ckpt_name=ckpt_name,
+            accelerator=accelerator,
         )
 
-    export(
-        workdir=workdir,
-        repo_id=repository,
-        visibility=visibility,
-        logfile_anonymous=True,
-        append_tags=tags,
-        title=title,
-        description=description,
-        license=license,
-        ckpt_name=ckpt_name,
-    )
+    if accelerator.is_main_process:
+        export(
+            workdir=workdir,
+            repo_id=repository,
+            visibility=visibility,
+            logfile_anonymous=True,
+            append_tags=tags,
+            title=title,
+            description=description,
+            license=license,
+            onnx_opset_version=onnx_opset_version,
+            no_onnx_export=no_onnx_export,
+            namespace=namespace,
+            ckpt_name=ckpt_name,
+        )
 
 
 if __name__ == '__main__':

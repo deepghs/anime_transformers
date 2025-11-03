@@ -2,6 +2,7 @@ import json
 import os
 from functools import partial
 from pprint import pformat
+from typing import Optional
 
 import click
 import torch
@@ -20,7 +21,8 @@ from ..model import ModelStep, StepInfo
 from ..utils import GLOBAL_CONTEXT_SETTINGS, print_version
 
 
-def test(workdir: str, num_workers: int = 32, batch_size: int = 32, force: bool = False, ckpt_name: str = 'best'):
+def test(workdir: str, num_workers: int = 32, batch_size: int = 32, force: bool = False,
+         accelerator: Optional[Accelerator] = None, ckpt_name: str = 'best'):
     model_ckpt_dir = os.path.join(workdir, 'checkpoints', ckpt_name)
     metrics_dir = os.path.join(model_ckpt_dir, 'test')
 
@@ -28,7 +30,7 @@ def test(workdir: str, num_workers: int = 32, batch_size: int = 32, force: bool 
         logging.info(f'Already checkpoint {ckpt_name!r} tested for {workdir}, skipped.')
         return
 
-    accelerator = Accelerator(
+    accelerator = accelerator or Accelerator(
         # mixed_precision=self.cfgs.mixed_precision,
         step_scheduler_with_optimizer=False,
     )
