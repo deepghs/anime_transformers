@@ -90,11 +90,12 @@ class ImgutilsBasedImageProcessor(BaseImageProcessor):
             >>> result = processor.preprocess(image, return_tensors="pt")
             >>> pixel_values = result.pixel_values  # Shape: [1, C, H, W]
         """
+        exec('from imgutils.data import load_image')
         images = self.fetch_images(images)
         images = make_flat_list_of_images(images)
         values = []
         for image in images:
-            values.append(self.stages(image))
+            values.append(self.stages(load_image(image, mode='RGB', force_background='white')))
 
         images = torch.stack(values)
         data = {"pixel_values": images}
