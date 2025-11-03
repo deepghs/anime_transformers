@@ -18,7 +18,7 @@ def _get_timm_repo_id(timm_model_name: str):
 
 def load_model_from_timm(
         model_name: str, task_type: str = 'classification', task_config: Optional[dict] = None,
-        unbind_from_src_repo: bool = True, **model_args,
+        unbind_from_src_repo: bool = True, use_infer_head: bool = False, **model_args,
 ):
     model_args = dict(model_args or {})
     task_config = dict(task_config or {})
@@ -27,6 +27,7 @@ def load_model_from_timm(
         model_args=model_args,
         task_type=task_type,
         task_config=task_config,
+        use_infer_head=use_infer_head,
     )
     origin_model = TimmModel(origin_model_cfg, pretrained=True)
 
@@ -44,6 +45,7 @@ def load_model_from_timm(
             model_args={**model_args, **(config.get('model_args') or {})},
             task_type=task_type,
             task_config=task_config,
+            use_infer_head=use_infer_head,
         )
         model = TimmModel(model_cfg, pretrained=False)
         model.load_state_dict(origin_model.state_dict())
@@ -55,6 +57,7 @@ def load_model_from_timm(
 
 def load_model_from_timm_transformers(
         model_name: str, task_type: Optional[str] = None, task_config: Optional[dict] = None,
+        use_infer_head: Optional[bool] = None,
 ):
     origin_model = AutoModel.from_pretrained(model_name, pretrained=True)
     assert type(origin_model).__name__ == 'TimmModel', \
@@ -64,6 +67,7 @@ def load_model_from_timm_transformers(
         model_args=origin_model.config.model_args,
         task_type=task_type or origin_model.config.task_type,
         task_config=task_config or origin_model.config.task_config,
+        use_infer_head=use_infer_head if use_infer_head is not None else origin_model.config.use_infer_head,
     )
     if origin_model.config.num_outputs != config.num_outputs:
         origin_model.model.reset_classifier(config.num_outputs)
@@ -73,8 +77,20 @@ def load_model_from_timm_transformers(
     return model
 
 
-def load_model(model_name: str, task_type: Optional[str] = None, task_config: Optional[dict] = None, **kwargs):
+def load_model(model_name: str, task_type: Optional[str] = None, task_config: Optional[dict] = None,
+               use_infer_head: bool = False, **kwargs):
     if '/' not in model_name or 'hf-hub:' in model_name:
-        return load_model_from_timm(model_name, task_type=task_type, task_config=task_config, **kwargs)
+        return load_model_from_timm(
+            model_name=model_name,
+            task_type=task_type,
+            task_config=task_config,
+            use_infer_head=use_infer_head,
+            **kwargs
+        )
     else:
-        return load_model_from_timm_transformers(model_name, task_type=task_type, task_config=task_config)
+        return load_model_from_timm_transformers(
+            model_name=model_name,
+            task_type=task_type,
+            task_config=task_config,
+            use_infer_head=use_infer_head,
+        )
