@@ -8,6 +8,7 @@ from tempfile import TemporaryDirectory
 from typing import Optional, Literal, List
 
 import click
+import pandas as pd
 from PIL import Image
 from accelerate import Accelerator
 from ditk import logging
@@ -59,6 +60,11 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
         task_type = meta_info.get('task_type', 'classification')
         if task_type != 'classification':
             raise RuntimeError(f'Workdir {workdir!r} is not a classification task, but {task_type!r} instead.')
+        meta_info['task_type'] = 'classification'
+
+        num_topk = meta_info['train'].get('num_topk')
+        if num_topk is None:
+            num_topk = max(min(len(classes_info.classes) // 2, 5), 1)
 
         dataset_repo_id = meta_info['train']['dataset']
         checkpoints = os.path.join(workdir, 'checkpoints')
@@ -191,9 +197,10 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
             print(f'tags:', file=f)
             print(f'- image-classification', file=f)
             print(f'- transformers', file=f)
+            print(f'- transformers', file=f)
             print(f'- animetrans', file=f)
             print(f'- dghs-imgutils', file=f)
-            print(f'library_name: timm', file=f)
+            print(f'library_name: transformers', file=f)
             print(f'license: {license}', file=f)
             print(f'datasets:', file=f)
             print(f'- {dataset_repo_id}', file=f)
@@ -223,6 +230,47 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
                   file=f)
 
             print(f'  - Classes: {", ".join(map(lambda x: f"`{x}`", classes))}', file=f)
+            print(f'', file=f)
+
+            print(f'## Results', file=f)
+            print(f'', file=f)
+            print(f'### Metrics', file=f)
+            print(f'', file=f)
+            s_records = [{
+                '#': 'Validation',
+                'Acc': f"{eval_step_info.metrics['accuracy'] * 100.0:.2f}%",
+                f'Top-{num_topk}': f"{eval_step_info.metrics[f'top-{num_topk}'] * 100.0:.2f}%",
+                'Macro (F1/P/R/AUC)': '%.3f / %.3f / %.3f / %.3f' % (
+                    eval_step_info.metrics['macro_f1'],
+                    eval_step_info.metrics['macro_precision'],
+                    eval_step_info.metrics['macro_recall'],
+                    eval_step_info.metrics['macro_auc'],
+                ),
+                'Micro (F1/P/R/AUC)': '%.3f / %.3f / %.3f / %.3f' % (
+                    eval_step_info.metrics['micro_f1'],
+                    eval_step_info.metrics['micro_precision'],
+                    eval_step_info.metrics['micro_recall'],
+                    eval_step_info.metrics['micro_auc'],
+                ),
+            }]
+            if test_step_info:
+                s_records.append({
+                    '#': 'Test',
+                    'Acc': f"{test_step_info.metrics['accuracy'] * 100.0:.2f}%",
+                    f'Top-{num_topk}': f"{test_step_info.metrics[f'top-{num_topk}'] * 100.0:.2f}%",
+                    'Macro (F1/P/R)': '%.3f / %.3f / %.3f' % (
+                        test_step_info.metrics['macro_f1'],
+                        test_step_info.metrics['macro_precision'],
+                        test_step_info.metrics['macro_recall'],
+                    ),
+                    'Micro (F1/P/R)': '%.3f / %.3f / %.3f' % (
+                        test_step_info.metrics['micro_f1'],
+                        test_step_info.metrics['micro_precision'],
+                        test_step_info.metrics['micro_recall'],
+                    )
+                })
+            df_s = pd.DataFrame(s_records)
+            print(df_s.to_markdown(index=False, stralign='center', numalign='center'), file=f)
             print(f'', file=f)
 
         upload_directory_as_directory(
