@@ -198,13 +198,16 @@ def test(workdir: str, num_workers: int = 32, batch_size: int = 32, force: bool 
 @click.option('--batch-size', '-bs', default=32, type=int, help='Batch size', show_default=True)
 @click.option('--workdir', '-w', default=None, type=str, help='Workdir to save training data', show_default=True)
 @click.option('--force/--non-force', default=True, help='Force re-calculate.', show_default=True)
-def cli(workdir, num_workers, batch_size, force):
+@click.option('--ckpt-name', '-c', 'ckpt_name', default='best', help='Name of the checkpoint to test',
+              show_default=True)
+def cli(workdir, num_workers, batch_size, force, ckpt_name):
     logging.try_init_root(logging.INFO)
     test(
         workdir=workdir,
         num_workers=num_workers,
         batch_size=batch_size,
         force=force,
+        ckpt_name=ckpt_name,
     )
 
 
