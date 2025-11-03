@@ -202,6 +202,7 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
         with open(os.path.join(upload_dir, 'README.md'), 'w') as f:
             base_model_repo_id = meta_info['train'].get('model_name')
             if base_model_repo_id:
+                base_model_repo_id = _get_base_model_repo_id(base_model_repo_id)
                 if base_model_repo_id == repo_id:
                     base_models = hf_client.repo_info(repo_id=repo_id, repo_type='model').card_data.get(
                         'base_model') or []
