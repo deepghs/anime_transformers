@@ -45,6 +45,14 @@ def load_preprocessor_from_timm(
     else:
         trans_config = preprocess_json['test']
 
+    # TODO: better to make these part as function, do not duplicate it
+
+    # TODO: refactor this logic
+    #       1. if use_pre_align == true and first stage is not pad_to_size, add it
+    #       2. if use_pre_align == true and first stage is pad_to_size but not the given pre_align_size, replace it
+    #       3. if use_pre_align == false and first stage is not pad_to_size, do nothing
+    #       4. if use_pre_align == false and first stage is pad_to_size, remove it
+    #       5. if use_pre_align is None, do nothing
     if use_pre_align is not None:
         if use_pre_align and (not trans_config or trans_config[0]['type'] != 'pad_to_size'):
             # need to add pre align
@@ -61,6 +69,12 @@ def load_preprocessor_from_timm(
             # need to remove pre align
             trans_config = trans_config[1:]
 
+    # TODO: refactor this logic, define the last stage before to_tensor/maybe_to_tensor (when has to_tensor/maybe_to_tensor)
+    #       or the last stage (when no to_tensor/maybe_to_tensor found) as 'last key stage'
+    #       1. if 'last key stage' is center_crop, replace its size to [size, size]
+    #       2. if 'last key stage' is resize, replace its size to size
+    #       3. if 'last key stage' is not those, add a resize stage with size after it
+    #       4. if no 'last key stage' found, add one at its place
     if size is not None:
         for item in trans_config:
             if item['type'] == 'resize':

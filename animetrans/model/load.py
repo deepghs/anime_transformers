@@ -42,6 +42,7 @@ def load_model_from_timm(
 
         model_cfg = TimmModelConfig(
             model_name=config['architecture'],
+            # TODO: fix this place, rough model args should be first
             model_args={**model_args, **(config.get('model_args') or {})},
             task_type=task_type,
             task_config=task_config,
