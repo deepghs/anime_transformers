@@ -1,7 +1,7 @@
 import json
 import logging
 import os.path
-from typing import Optional
+from typing import Optional, List, Dict, Any, Union, Tuple
 
 from huggingface_hub import hf_hub_download
 from huggingface_hub.errors import RepositoryNotFoundError, EntryNotFoundError
@@ -21,6 +21,162 @@ def _get_timm_repo_id(timm_model_name: str):
         return model_name
     else:
         return f'timm/{model_name}'
+
+
+def _size_align(size: Union[int, List[int], Tuple[int, int]]):
+    if isinstance(size, int):
+        return size, size
+    elif isinstance(size, (list, tuple)):
+        if len(size) == 1:
+            return size[0], size[0]
+        else:
+            return tuple(size)
+    else:
+        raise TypeError(f'Unknown size - {size!r}.')
+
+
+_SIZE_STAGES = {'center_crop', 'resize', 'pad_to_size'}
+
+
+def _handle_useless_size_operation(trans_config: List[Dict[str, Any]]):
+    _trans = []
+    _last_size = None
+    for i, trans_item in enumerate(trans_config):
+        if i > 0:
+            if trans_item['type'] in _SIZE_STAGES:  # this stage is size related
+                if _last_size is None or _size_align(trans_item['size']) != _last_size:
+                    # this stage will actually change the size
+                    _trans.append(trans_item)
+                    _last_size = _size_align(trans_item['size'])
+            else:
+                _trans.append(trans_item)
+        else:
+            _trans.append(trans_item)
+            if trans_item['type'] in _SIZE_STAGES:
+                _last_size = _size_align(trans_item['size'])
+    return _trans
+
+
+def _handle_pre_align_logic(
+        trans_config: List[Dict[str, Any]],
+        use_pre_align: Optional[bool],
+        pre_align_size: int
+) -> List[Dict[str, Any]]:
+    """
+    Handle pre-align logic based on use_pre_align parameter:
+    1. if use_pre_align == true and first stage is not pad_to_size, add it
+    2. if use_pre_align == true and first stage is pad_to_size but not the given pre_align_size, replace it
+    3. if use_pre_align == false and first stage is not pad_to_size, do nothing
+    4. if use_pre_align == false and first stage is pad_to_size, remove it
+    5. if use_pre_align is None, do nothing
+    """
+    if use_pre_align is None:
+        return trans_config
+
+    has_pad_to_size_first = trans_config and trans_config[0]['type'] == 'pad_to_size'
+
+    if use_pre_align:
+        pad_to_size_config = {
+            "background_color": "white",
+            "interpolation": "bilinear",
+            "size": [pre_align_size, pre_align_size],
+            "type": "pad_to_size"
+        }
+
+        if not has_pad_to_size_first:
+            # Case 1: add pre align
+            trans_config = [pad_to_size_config, *trans_config]
+        else:
+            # Case 2: replace existing pad_to_size with correct size
+            current_size = trans_config[0].get('size', [])
+            if current_size != [pre_align_size, pre_align_size]:
+                trans_config[0] = pad_to_size_config
+    else:  # use_pre_align == False
+        if has_pad_to_size_first:
+            # Case 4: remove pre align
+            trans_config = trans_config[1:]
+        # Case 3: do nothing if first stage is not pad_to_size
+
+    return trans_config
+
+
+def _find_to_tensor_index(trans_config: List[Dict[str, Any]]) -> Optional[int]:
+    """
+    Find the last key stage before to_tensor/maybe_to_tensor (when has to_tensor/maybe_to_tensor)
+    or the last stage (when no to_tensor/maybe_to_tensor found) as 'last key stage'
+    """
+    tensor_types = {'to_tensor', 'maybe_to_tensor'}
+
+    # Find first tensor conversion stage
+    tensor_index = None
+    for i, stage in enumerate(trans_config):
+        if stage['type'] in tensor_types:
+            return i
+
+    return None
+
+
+def _handle_size_logic(trans_config: List[Dict[str, Any]], size: Optional[int]) -> List[Dict[str, Any]]:
+    """
+    Handle size logic based on the last key stage:
+    1. if 'last key stage' is center_crop, replace its size to [size, size]
+    2. if 'last key stage' is resize, replace its size to size
+    3. if 'last key stage' is not those, add a resize stage with size after it
+    4. if no 'last key stage' found, add one at its place
+    """
+    if size is None:
+        return trans_config
+
+    resize_config = {
+        "antialias": True,
+        "interpolation": "bicubic",
+        "max_size": None,
+        "size": size,
+        "type": "resize"
+    }
+    if not trans_config:
+        # Case 4: no stages found, add resize
+        return [resize_config]
+
+    to_tensor_index = _find_to_tensor_index(trans_config)
+    if to_tensor_index is None:
+        # No valid last key stage found, insert at the end
+        return [*trans_config, resize_config]
+
+    if to_tensor_index > 0:
+        last_key_stage = trans_config[to_tensor_index - 1]
+        if last_key_stage['type'] == 'resize':
+            # Case 2: replace resize size
+            last_key_stage['size'] = size
+        else:
+            # Case 3: add resize stage after last key stage
+            trans_config.insert(to_tensor_index, resize_config)
+    else:
+        trans_config.insert(0, resize_config)
+
+    return trans_config
+
+
+def _apply_common_transformations(
+        trans_config: List[Dict[str, Any]],
+        use_pre_align: Optional[bool],
+        pre_align_size: int,
+        size: Optional[int]
+) -> List[Dict[str, Any]]:
+    """Apply common transformation logic for both timm and transformers."""
+    # Handle pre-align logic
+    trans_config = _handle_pre_align_logic(trans_config, use_pre_align, pre_align_size)
+
+    # Handle size operations
+    trans_config = _handle_useless_size_operation(trans_config)
+
+    # Handle size logic
+    trans_config = _handle_size_logic(trans_config, size)
+
+    # Handle size operations
+    trans_config = _handle_useless_size_operation(trans_config)
+
+    return trans_config
 
 
 def load_preprocessor_from_timm(
@@ -45,43 +201,7 @@ def load_preprocessor_from_timm(
     else:
         trans_config = preprocess_json['test']
 
-    # TODO: better to make these part as function, do not duplicate it
-
-    # TODO: refactor this logic
-    #       1. if use_pre_align == true and first stage is not pad_to_size, add it
-    #       2. if use_pre_align == true and first stage is pad_to_size but not the given pre_align_size, replace it
-    #       3. if use_pre_align == false and first stage is not pad_to_size, do nothing
-    #       4. if use_pre_align == false and first stage is pad_to_size, remove it
-    #       5. if use_pre_align is None, do nothing
-    if use_pre_align is not None:
-        if use_pre_align and (not trans_config or trans_config[0]['type'] != 'pad_to_size'):
-            # need to add pre align
-            trans_config = [
-                {
-                    "background_color": "white",
-                    "interpolation": "bilinear",
-                    "size": [pre_align_size, pre_align_size],
-                    "type": "pad_to_size"
-                },
-                *trans_config,
-            ]
-        elif not use_pre_align and trans_config and trans_config[0]['type'] == 'pad_to_size':
-            # need to remove pre align
-            trans_config = trans_config[1:]
-
-    # TODO: refactor this logic, define the last stage before to_tensor/maybe_to_tensor (when has to_tensor/maybe_to_tensor)
-    #       or the last stage (when no to_tensor/maybe_to_tensor found) as 'last key stage'
-    #       1. if 'last key stage' is center_crop, replace its size to [size, size]
-    #       2. if 'last key stage' is resize, replace its size to size
-    #       3. if 'last key stage' is not those, add a resize stage with size after it
-    #       4. if no 'last key stage' found, add one at its place
-    if size is not None:
-        for item in trans_config:
-            if item['type'] == 'resize':
-                item['size'] = size
-            elif item['type'] == 'center_crop':
-                item['size'] = [size, size]
-
+    trans_config = _apply_common_transformations(trans_config, use_pre_align, pre_align_size, size)
     return ImgutilsBasedImageProcessor(stages=trans_config)
 
 
@@ -91,42 +211,42 @@ def load_preprocessor_from_transformers(
 ):
     logging.info(f'Loading preprocessor of model {model_name!r} with transformers format ...')
     trans = AutoImageProcessor.from_pretrained(model_name, trust_remote_code=True, **kwargs)
-    trans_config = parse_torchvision_transforms(create_transforms_from_transformers(trans))
+    if type(trans).__name__ == ImgutilsBasedImageProcessor.__name__:
+        trans: ImgutilsBasedImageProcessor
+        trans_config = parse_torchvision_transforms(trans.stages)
+    else:
+        trans_config = parse_torchvision_transforms(create_transforms_from_transformers(trans))
 
-    if use_pre_align is not None:
-        if use_pre_align and (not trans_config or trans_config[0]['type'] != 'pad_to_size'):
-            # need to add pre align
-            trans_config = [
-                {
-                    "background_color": "white",
-                    "interpolation": "bilinear",
-                    "size": [pre_align_size, pre_align_size],
-                    "type": "pad_to_size"
-                },
-                *trans_config,
-            ]
-        elif not use_pre_align and trans_config and trans_config[0]['type'] == 'pad_to_size':
-            # need to remove pre align
-            trans_config = trans_config[1:]
-
-    if size is not None:
-        for item in trans_config:
-            if item['type'] == 'resize':
-                item['size'] = size
-            elif item['type'] == 'center_crop':
-                item['size'] = [size, size]
-
+    trans_config = _apply_common_transformations(trans_config, use_pre_align, pre_align_size, size)
     return ImgutilsBasedImageProcessor(stages=trans_config)
 
 
-def load_preprocessor(model_name: str, hf_token: Optional[str] = None, **kwargs):
+def load_preprocessor(model_name: str, hf_token: Optional[str] = None,
+                      use_pre_align: Optional[bool] = None, pre_align_size: int = 512,
+                      size: Optional[int] = None, **kwargs):
     if os.path.exists(os.path.join(model_name, 'preprocessor_config.json')):
-        return load_preprocessor_from_transformers(model_name, **kwargs)
+        return load_preprocessor_from_transformers(
+            model_name=model_name,
+            use_pre_align=use_pre_align,
+            pre_align_size=pre_align_size,
+            size=size,
+            **kwargs
+        )
     elif model_name.startswith('hf-hub:'):
-        return load_preprocessor_from_timm(model_name, **kwargs)
+        return load_preprocessor_from_timm(
+            model_name=model_name,
+            use_pre_align=use_pre_align,
+            pre_align_size=pre_align_size,
+            size=size,
+        )
     else:
         if '/' not in model_name:
-            return load_preprocessor_from_timm(model_name, **kwargs)
+            return load_preprocessor_from_timm(
+                model_name=model_name,
+                use_pre_align=use_pre_align,
+                pre_align_size=pre_align_size,
+                size=size,
+            )
 
         try:
             hf_hub_download(
@@ -136,6 +256,17 @@ def load_preprocessor(model_name: str, hf_token: Optional[str] = None, **kwargs)
                 token=hf_token,
             )
         except (RepositoryNotFoundError, EntryNotFoundError):
-            return load_preprocessor_from_timm(f'hf-hub:{model_name}', **kwargs)
+            return load_preprocessor_from_timm(
+                model_name=f'hf-hub:{model_name}',
+                use_pre_align=use_pre_align,
+                pre_align_size=pre_align_size,
+                size=size,
+            )
         else:
-            return load_preprocessor_from_transformers(model_name, **kwargs)
+            return load_preprocessor_from_transformers(
+                model_name=model_name,
+                use_pre_align=use_pre_align,
+                pre_align_size=pre_align_size,
+                size=size,
+                **kwargs
+            )
