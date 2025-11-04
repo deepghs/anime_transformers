@@ -452,9 +452,26 @@ def train(
               help='Additional augmentation arguments in format KEY=VALUE. Types are auto-detected.')
 @click.option('--preprocess-arg', '-pa', multiple=True, callback=parse_key_value,
               help='Additional preprocessor arguments in format KEY=VALUE. Types are auto-detected.')
+@click.option('--no-pre-align', type=bool, is_flag=True, default=False,
+              help='Disable pre-align', show_default=True)
+@click.option('--align-size', '-as', type=int, default=None, help='Align size', show_default=True)
+@click.option('--size', type=int, default=None, help='Image size', show_default=True)
 def cli(dataset_repo_id, max_epochs, model_name, num_workers, batch_size, learning_rate, weight_decay,
-        key_metric, seed, eval_epoch, workdir, model_arg, aug_arg, preprocess_arg, image_key, class_key, suffix):
+        key_metric, seed, eval_epoch, workdir, model_arg, aug_arg, preprocess_arg, image_key, class_key, suffix,
+        no_pre_align, align_size, size):
     logging.try_init_root(logging.INFO)
+
+    model_arg = dict(model_arg or {})
+    aug_arg = dict(aug_arg or {})
+    preprocess_arg = dict(preprocess_arg or {})
+    if size is not None:
+        model_arg['img_size'] = size
+        preprocess_arg['size'] = size
+    if no_pre_align:
+        preprocess_arg['use_pre_align'] = False
+    elif align_size is not None:
+        preprocess_arg['use_pre_align'] = True
+        preprocess_arg['pre_align_size'] = align_size
 
     rmn = model_name.replace('/', '_').replace(':', '_').replace('\\', '_')
     logging.info(f'Model args to use:\n{pformat(model_arg)}')
