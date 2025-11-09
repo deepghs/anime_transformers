@@ -208,6 +208,8 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
                         'base_model') or []
                     if base_models:
                         base_model_repo_id = base_models[0]
+            if base_model_repo_id and hf_client.repo_exists(repo_id=base_model_repo_id, repo_type='model'):
+                base_model_repo_id = hf_client.repo_info(repo_id=base_model_repo_id, repo_type='model').id
 
             print(f'---', file=f)
             print(f'tags:', file=f)
