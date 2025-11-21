@@ -60,7 +60,7 @@ def load_model_from_timm_transformers(
         model_name: str, task_type: Optional[str] = None, task_config: Optional[dict] = None,
         use_infer_head: Optional[bool] = None,
 ):
-    origin_model = AutoModel.from_pretrained(model_name, pretrained=True)
+    origin_model = AutoModel.from_pretrained(model_name, pretrained=True, trust_remote_code=True)
     assert type(origin_model).__name__ == 'TimmModel', \
         f'Unsupported source transformers model - {model_name!r}.'
     config = TimmModelConfig(
