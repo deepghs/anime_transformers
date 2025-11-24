@@ -27,3 +27,4 @@ calflops
 transformers
 click>=8
 scikit-learn
+pillow-avif-plugin
