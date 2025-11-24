@@ -176,8 +176,8 @@ def id2datasets(image_folder: str, min_image_class: int, eval_percentile: int, t
     hf_client = HfApi()
 
     if not hf_client.repo_exists(repo_id=repository, repo_type='dataset'):
-        hf_client.create_repo(repo_id=repository, repo_type='dataset', private=True)
-        hf_client.update_repo_settings(repo_id=repository, repo_type='dataset', gated='auto', private=True)
+        hf_client.create_repo(repo_id=repository, repo_type='dataset', private=False)
+        hf_client.update_repo_settings(repo_id=repository, repo_type='dataset', gated='manual', private=False)
         # hf_client.update_repo_visibility(repo_id=repository, repo_type='dataset', private=True)
         attr_lines = hf_fs.read_text(f'datasets/{repository}/.gitattributes').splitlines(keepends=False)
         # attr_lines.append('*.json filter=lfs diff=lfs merge=lfs -text')
