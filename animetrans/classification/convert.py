@@ -143,7 +143,7 @@ def id2datasets(image_folder: str, min_image_class: int, eval_percentile: int, t
                 },
                 "json": {
                     "id": {
-                        "dtype": "int32",
+                        "dtype": "string",
                         "_type": "Value"
                     },
                     "width": {
