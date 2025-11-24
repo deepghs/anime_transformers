@@ -172,8 +172,8 @@ def id2datasets(image_folder: str, min_image_class: int, eval_percentile: int, t
         }
     }
 
-    hf_fs = HfFileSystem(token=os.environ['HF_TOKEN_X'])
-    hf_client = HfApi(token=os.environ['HF_TOKEN_X'])
+    hf_fs = HfFileSystem()
+    hf_client = HfApi()
 
     if not hf_client.repo_exists(repo_id=repository, repo_type='dataset'):
         hf_client.create_repo(repo_id=repository, repo_type='dataset', private=True)
@@ -381,7 +381,6 @@ def id2datasets(image_folder: str, min_image_class: int, eval_percentile: int, t
                     local_directory=upload_dir,
                     path_in_repo='.',
                     message=f'Add pack #{max_split_id} for {split!r} with {plural_word(new_images_count, "image")}',
-                    hf_token=os.environ['HF_TOKEN_X'],
                 )
 
 
