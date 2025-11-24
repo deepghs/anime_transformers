@@ -41,19 +41,15 @@ def id2datasets(image_folder: str, min_image_class: int, eval_percentile: int, t
     else:
         logging.info('Pillow Avif launched.')
 
-    d_classes = {}
     d_class_splits = {}
     for name in tqdm(os.listdir(image_folder), desc='Scanning classes'):
         if os.path.isdir(os.path.join(image_folder, name)):
-            d_classes[name] = []
-            d_class_splits[name] = {'train': 0, 'val': 0, 'test': 0}
+            d_class_splits[name] = {'train': [], 'val': [], 'test': []}
             for file in tqdm(glob.glob(os.path.join(image_folder, name, '**', '*'), recursive=True),
                              desc=f'Scanning class {name!r}'):
                 mimetype, _ = mimetypes.guess_type(file)
                 if mimetype and mimetype.startswith('image/'):
                     path = hf_normpath(os.path.relpath(file, image_folder))
-                    d_classes[name].append(path)
-
                     suffix_id = int_hash(path) % 100
                     if suffix_id >= 100 - test_percentile:
                         split = 'test'
@@ -61,17 +57,21 @@ def id2datasets(image_folder: str, min_image_class: int, eval_percentile: int, t
                         split = 'val'
                     else:
                         split = 'train'
-                    d_class_splits[name][split] += 1
+                    d_class_splits[name][split].append(path)
 
-    d_classes = {name: value for name, value in d_classes.items() if len(value) >= min_image_class}
-    classes = natsorted(d_classes.keys())
+    d_class_splits = {
+        name: value for name, value in d_class_splits.items()
+        if len(value['train']) + len(value['val']) + len(value['test']) >= min_image_class
+    }
+    classes = natsorted(d_class_splits.keys())
     df_classes = pd.DataFrame([
         {
             'class': name,
-            'total_count': len(d_classes[name]),
-            'train_count': d_class_splits[name]['train'],
-            'val_count': d_class_splits[name]['val'],
-            'test_count': d_class_splits[name]['test'],
+            'total_count': len(d_class_splits[name]['train']) + len(d_class_splits[name]['val']) + len(
+                d_class_splits[name]['test']),
+            'train_count': len(d_class_splits[name]['train']),
+            'val_count': len(d_class_splits[name]['val']),
+            'test_count': len(d_class_splits[name]['test']),
 
         }
         for name in classes
