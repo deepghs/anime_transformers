@@ -8,7 +8,7 @@ scipy
 matplotlib
 huggingface_hub<1
 hfutils>=0.11
-hbutils
+hbutils>=0.13
 datasets>=3.5.0
 pandas
 tqdm
@@ -28,3 +28,4 @@ transformers
 click>=8
 scikit-learn
 pillow-avif-plugin
+natsort
