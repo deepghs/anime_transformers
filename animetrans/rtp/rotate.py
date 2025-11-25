@@ -7,7 +7,16 @@ from .base import RowLevelProcessor, get_int_hash, register_rprocessor
 
 
 def rotate_as_degree(image: Image.Image, r: int):
-    return image.rotate(-r, expand=False)
+    if r == 0:
+        return image
+    elif r == 90:
+        return image.transpose(Image.Transpose.ROTATE_270)
+    elif r == 180:
+        return image.transpose(Image.Transpose.ROTATE_180)
+    elif r == 270:
+        return image.transpose(Image.Transpose.ROTATE_90)
+    else:
+        raise ValueError(f'Unknown transpose - {r!r}.')
 
 
 _ROTATE_DEGREES = [0, 90, 180, 270]
