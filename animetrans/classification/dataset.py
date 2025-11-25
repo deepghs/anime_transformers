@@ -43,7 +43,7 @@ def load_classes(repo_id: str, rtp_name: Optional[str] = None) -> ClassesInfo:
         if original_classes != classes:
             logging.info(f'Classes have been changed {original_classes!r} --> {classes!r} ...')
 
-    if classes:
+    if not classes:
         raise RuntimeError('Empty classes is not allowed!')
 
     return ClassesInfo(
