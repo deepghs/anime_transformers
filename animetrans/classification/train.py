@@ -470,9 +470,11 @@ def train(
               help='Disable pre-align', show_default=True)
 @click.option('--align-size', '-as', type=int, default=None, help='Align size', show_default=True)
 @click.option('--size', type=int, default=None, help='Image size', show_default=True)
+@click.option('-rlp', '-rtp', '--row-level-processor', type=str, default=str,
+              help='Row level processor to training', show_default=True)
 def cli(dataset_repo_id, max_epochs, model_name, num_workers, batch_size, learning_rate, weight_decay,
         key_metric, seed, eval_epoch, workdir, model_arg, aug_arg, preprocess_arg, image_key, class_key, suffix,
-        no_pre_align, align_size, size):
+        no_pre_align, align_size, size, row_level_processor):
     logging.try_init_root(logging.INFO)
 
     model_arg = dict(model_arg or {})
@@ -511,6 +513,7 @@ def cli(dataset_repo_id, max_epochs, model_name, num_workers, batch_size, learni
         max_epochs=max_epochs,
         class_key=class_key,
         image_key=image_key,
+        row_level_processor=row_level_processor,
     )
 
 
