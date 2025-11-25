@@ -29,6 +29,7 @@ from timm.models import parse_model_name
 from transformers import AutoModel, AutoImageProcessor
 
 from animetrans.classification.dataset import load_dataset
+from animetrans.rtp import get_rprocessor
 from .test import test
 from ..dataset import load_pretrained_tag
 from ..model import StepInfo
@@ -78,6 +79,13 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
         meta_info['task_type'] = 'classification'
 
         classes = meta_info['classes']
+        row_level_processor = meta_info['train'].get('row_level_processor')
+        if row_level_processor:
+            logging.info(f'Loading row level processor - {row_level_processor!r} ...')
+            rtp = get_rprocessor('classification', row_level_processor)()
+        else:
+            rtp = None
+
         num_topk = meta_info['train'].get('num_topk')
         if num_topk is None:
             num_topk = max(min(len(classes) // 2, 5), 1)
@@ -97,7 +105,12 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
         pretrained_tag = meta_info['train'].get('pretrained_tag') or load_pretrained_tag(dataset_repo_id)
         logging.info(f'Pretrained tag {pretrained_tag!r} found for dataset {dataset_repo_id!r}.')
 
-        model_name = '.'.join([f'cls-{pretrained_tag}', model.config.model_name, *append_tags])
+        tags_order = [f'cls-{pretrained_tag}']
+        if row_level_processor:
+            tags_order.append(row_level_processor)
+        tags_order.append(model.config.model_name)
+        tags_order.extend(append_tags)
+        model_name = '.'.join(tags_order)
         repo_id = repo_id or f'{namespace}/{model_name}'
         logging.info(f'Target repository: {repo_id!r}.')
         if not hf_client.repo_exists(repo_id=repo_id, repo_type='model'):
@@ -346,7 +359,14 @@ def export(workdir: str, repo_id: Optional[str] = None, ckpt_name: str = 'best',
             print(f'## How to Use', file=f)
             print(f'', file=f)
 
-            dataset = load_dataset(dataset_repo_id, split='test', image_key=image_key, class_key=class_key)
+            dataset = load_dataset(
+                dataset_repo_id,
+                split='test',
+                image_key=image_key,
+                class_key=class_key,
+                row_level_preprocess=rtp.on_test if rtp else None,
+                rtp_name=row_level_processor,
+            )
 
             imgutils_version = str(vpip('dghs-imgutils')._actual_version)
             transformers_version = str(vpip('transformers')._actual_version)

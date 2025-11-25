@@ -12,6 +12,7 @@ from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_sco
 from tqdm import tqdm
 from transformers import AutoModel, AutoImageProcessor
 
+from animetrans.rtp import get_rprocessor
 from .dataset import load_dataloader, load_classes
 from .plot_cm import plt_confusion_matrix
 from .plot_export import plt_export
@@ -41,9 +42,16 @@ def test(workdir: str, num_workers: int = 32, batch_size: int = 32, force: bool 
     with open(os.path.join(workdir, 'meta.json'), 'r') as f:
         meta_info = json.load(f)
 
+    row_level_processor = meta_info['train'].get('row_level_processor')
+    if row_level_processor:
+        logging.info(f'Loading row level processor - {row_level_processor!r} ...')
+        rtp = get_rprocessor('classification', row_level_processor)()
+    else:
+        rtp = None
+
     image_key, class_key = meta_info['train']['image_key'], meta_info['train']['class_key']
     dataset_repo_id = meta_info['train']['dataset']
-    classes_info = load_classes(repo_id=dataset_repo_id)
+    classes_info = load_classes(repo_id=dataset_repo_id, rtp_name=row_level_processor)
     pretrained_tag = meta_info['train'].get('pretrained_tag') or load_pretrained_tag(dataset_repo_id)
     logging.info(f'Pretrained tag {pretrained_tag!r} found for dataset {dataset_repo_id!r}.')
     num_topk = meta_info['train'].get('num_topk')
@@ -78,6 +86,8 @@ def test(workdir: str, num_workers: int = 32, batch_size: int = 32, force: bool 
         num_workers=num_workers,
         is_main_process=accelerator.is_main_process,
         image_key=image_key,
+        row_level_preprocess=rtp.on_test if rtp else None,
+        rtp_name=row_level_processor,
     )
 
     infer_head = model.config.create_infer_head()

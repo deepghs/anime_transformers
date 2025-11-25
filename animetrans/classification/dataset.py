@@ -8,11 +8,13 @@ from PIL import Image
 from datasets import load_dataset as _timm_load_dataset
 from ditk import logging
 from huggingface_hub import hf_hub_download
+from huggingface_hub.errors import RepositoryNotFoundError, EntryNotFoundError
 from imgutils.data import load_image
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from animetrans.preprocess import load_preprocessor
+from ..rtp import get_rprocessor
 
 
 @dataclass
@@ -21,13 +23,28 @@ class ClassesInfo:
     classes_to_id: Dict[str, int]
 
 
-def load_classes(repo_id: str) -> ClassesInfo:
-    with open(hf_hub_download(
-            repo_id=repo_id,
-            repo_type='dataset',
-            filename='classes.json',
-    ), 'r') as f:
-        classes = json.load(f)
+def load_classes(repo_id: str, rtp_name: Optional[str] = None) -> ClassesInfo:
+    try:
+        with open(hf_hub_download(
+                repo_id=repo_id,
+                repo_type='dataset',
+                filename='classes.json',
+        ), 'r') as f:
+            classes = json.load(f)
+    except (RepositoryNotFoundError, EntryNotFoundError):
+        logging.warning(f'No classes.json found in dataset {repo_id!r} ...')
+        classes = None
+
+    if rtp_name:
+        logging.info(f'Loading row level preprocessor {rtp_name!r} ...')
+        rtp = get_rprocessor('classification', rtp_name)()
+        original_classes = classes
+        classes = rtp.change_classes(classes)
+        if original_classes != classes:
+            logging.info(f'Classes have been changed {original_classes!r} --> {classes!r} ...')
+
+    if classes:
+        raise RuntimeError('Empty classes is not allowed!')
 
     return ClassesInfo(
         classes=classes,
@@ -36,10 +53,10 @@ def load_classes(repo_id: str) -> ClassesInfo:
 
 
 def load_dataset(repo_id: str, split: str = 'train', class_key: str = 'class', image_key: str = 'webp',
-                 transforms: Optional = None,
+                 transforms: Optional = None, rtp_name: Optional[str] = None,
                  row_level_preprocess: Optional[Callable[[Image.Image, dict], Tuple[Image.Image, dict]]] = None):
     dataset = _timm_load_dataset(repo_id, split=split)
-    classes_info = load_classes(repo_id)
+    classes_info = load_classes(repo_id, rtp_name=rtp_name)
     classes_to_id = classes_info.classes_to_id
     row_level_preprocess = row_level_preprocess or (lambda x, y: (x, y))
 
@@ -122,7 +139,8 @@ class TransformersTrans:
 def load_dataloader(repo_id: str, preprocessor, class_key: str = 'class',
                     split: Literal['train', 'test', 'validation'] = 'train', aug_args: Optional[Dict[str, Any]] = None,
                     batch_size: int = 64, num_workers: int = 32, is_main_process: bool = True, image_key: str = 'webp',
-                    row_level_preprocess: Optional[Callable[[Image.Image, dict], Tuple[Image.Image, dict]]] = None):
+                    row_level_preprocess: Optional[Callable[[Image.Image, dict], Tuple[Image.Image, dict]]] = None,
+                    rtp_name: Optional[str] = None):
     from .augmentation import create_augmentation
     if split == 'train':
         trans = create_augmentation(**dict(aug_args or {}))
@@ -145,6 +163,7 @@ def load_dataloader(repo_id: str, preprocessor, class_key: str = 'class',
         image_key=image_key,
         class_key=class_key,
         row_level_preprocess=row_level_preprocess,
+        rtp_name=rtp_name,
     )
 
     def collate_fn(examples):

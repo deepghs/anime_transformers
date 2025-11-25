@@ -25,6 +25,7 @@ from .plot_pr import plt_multiclass_metrics, plt_f1_scores
 from ..dataset import load_pretrained_tag
 from ..model import ModelStep, load_model
 from ..preprocess import load_preprocessor
+from ..rtp import get_rprocessor
 from ..session import TrainSession
 from ..utils import parse_key_value, GLOBAL_CONTEXT_SETTINGS, print_version
 
@@ -50,6 +51,7 @@ def train(
         image_key: str = 'webp',
         adam_betas: Optional[Tuple[float, float]] = None,
         num_topk: Optional[int] = None,
+        row_level_processor: Optional[str] = None,
 ):
     accelerator = Accelerator(
         # mixed_precision=self.cfgs.mixed_precision,
@@ -69,7 +71,14 @@ def train(
 
     os.makedirs(workdir, exist_ok=True)
 
-    classes_info = load_classes(repo_id=dataset_repo_id)
+    classes_info = load_classes(repo_id=dataset_repo_id, rtp_name=row_level_processor)
+    if row_level_processor:
+        if accelerator.is_main_process:
+            logging.info(f'Loading row level processor - {row_level_processor!r} ...')
+        rtp = get_rprocessor('classification', row_level_processor)()
+    else:
+        rtp = None
+
     with open(os.path.join(workdir, 'classes.json'), 'w') as f:
         json.dump(classes_info.classes, f)
     checkpoints = os.path.join(workdir, 'checkpoints')
@@ -123,6 +132,7 @@ def train(
         'adam_betas': adam_betas,
         'eval_epoch': eval_epoch,
         'num_topk': num_topk,
+        'row_level_processor': row_level_processor,
     }
     if accelerator.is_main_process:
         logging.info(f'Training configurations: {train_cfg!r}.')
@@ -161,6 +171,8 @@ def train(
         num_workers=num_workers,
         is_main_process=accelerator.is_main_process,
         image_key=image_key,
+        row_level_preprocess=rtp.on_train if rtp else None,
+        rtp_name=row_level_processor,
     )
     eval_dataloader = load_dataloader(
         repo_id=dataset_repo_id,
@@ -172,6 +184,8 @@ def train(
         num_workers=num_workers,
         is_main_process=accelerator.is_main_process,
         image_key=image_key,
+        row_level_preprocess=rtp.on_eval if rtp else None,
+        rtp_name=row_level_processor,
     )
 
     loss_fn = FocalLoss(reduction='none', num_classes=len(classes_info.classes))
